@@ -1,1 +1,8 @@
 backend/src/models
+
+# Ignore these
+myenv/
+models/
+*.swp
+*.swo
+ollama_logs.txt
