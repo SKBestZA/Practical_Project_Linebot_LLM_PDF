@@ -1,8 +1,12 @@
-backend/src/models
-
 # Ignore these
-myenv/
-models/
+ngrok.yml
+backend/config
+backend/test
+backend/venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
 *.swp
 *.swo
 ollama_logs.txt
