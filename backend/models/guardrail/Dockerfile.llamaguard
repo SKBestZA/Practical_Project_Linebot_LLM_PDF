@@ -1,0 +1,29 @@
+# Dockerfile for Llama Guard 3 (1B)
+
+FROM ollama/ollama:latest
+
+WORKDIR /app
+
+# 1. สำคัญมาก: ต้อง Reset ENTRYPOINT เพื่อให้รัน Bash Script ของเราได้
+ENTRYPOINT ["/bin/bash"]
+
+# Create startup script for Llama Guard 1B
+# ใช้ model: llama-guard3:1b (ขนาด 1B ตามที่ต้องการ)
+RUN echo '#!/bin/bash' > /app/startup.sh && \
+    echo 'echo "Starting Ollama server..."' >> /app/startup.sh && \
+    echo 'ollama serve &' >> /app/startup.sh && \
+    echo 'echo "Waiting for Ollama to be ready..."' >> /app/startup.sh && \
+    echo 'sleep 5' >> /app/startup.sh && \
+    echo 'echo "Pulling Llama Guard 3 (1B) model..."' >> /app/startup.sh && \
+    echo 'ollama pull llama-guard3:1b' >> /app/startup.sh && \
+    echo 'echo "-----------------------------------"' >> /app/startup.sh && \
+    echo 'echo "✅ Llama Guard 3 (1B) is ready!"' >> /app/startup.sh && \
+    echo 'echo "Model Name: llama-guard3:1b"' >> /app/startup.sh && \
+    echo 'echo "-----------------------------------"' >> /app/startup.sh && \
+    echo 'ollama list' >> /app/startup.sh && \
+    echo 'tail -f /dev/null' >> /app/startup.sh && \
+    chmod +x /app/startup.sh
+
+EXPOSE 11434
+
+CMD ["/app/startup.sh"]

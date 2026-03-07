@@ -1,0 +1,20 @@
+FROM ollama/ollama:latest
+
+# Create startup script for Gemma 3 4B
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'ollama serve &' >> /start.sh && \
+    echo 'sleep 5' >> /start.sh && \
+    echo 'ollama pull gemma3:4b' >> /start.sh && \
+    echo 'echo "Gemma 3 4B ready!"' >> /start.sh && \
+    echo 'echo "Model: gemma3:4b"' >> /start.sh && \
+    echo 'ollama list' >> /start.sh && \
+    echo 'tail -f /dev/null' >> /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE 11434
+
+# 1. Override ENTRYPOINT ให้เป็น shell
+ENTRYPOINT ["/bin/sh"]
+
+# 2. รัน script ของคุณผ่าน CMD
+CMD ["/start.sh"]

@@ -3,6 +3,8 @@ ngrok.yml
 backend/config
 backend/test
 backend/venv/
+frontend/node_modules
+frontend/.env
 **/__pycache__/
 *.py[cod]
 *$py.class

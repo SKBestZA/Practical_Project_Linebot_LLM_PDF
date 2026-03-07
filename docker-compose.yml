@@ -1,0 +1,48 @@
+version: "3.9"
+
+# ============================================================
+#  Root docker-compose.yml
+#  ครอบทั้ง backend และ frontend + ngrok
+# ============================================================
+
+include:
+  - path: ./backend/docker-compose.backend.yml
+  - path: ./frontend/docker-compose.frontend.yml
+
+services:
+
+  # -----------------------------
+  # ngrok (expose frontend + backend)
+  # -----------------------------
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: rag-ngrok
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/etc/ngrok.yml"
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
+    ports:
+      - "4040:4040"    # ngrok dashboard
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+# -----------------------------
+# Volumes
+# -----------------------------
+volumes:
+  chroma_data:
+  ollama_data:
+
+# -----------------------------
+# Network
+# -----------------------------
+networks:
+  rag-network:
+    driver: bridge

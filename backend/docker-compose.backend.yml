@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+
+  # -----------------------------
+  # ChromaDB
+  # -----------------------------
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: rag-chromadb
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  # -----------------------------
+  # Ollama
+  # -----------------------------
+  ollama:
+    build:
+      context: .
+      dockerfile: ./models/guardrail/Dockerfile.llamaguard
+    container_name: rag-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  # -----------------------------
+  # Backend
+  # -----------------------------
+  backend:
+    build:
+      context: .
+      dockerfile:   Dockerfile.backend
+    container_name: rag-backend
+
+    # ✅ โหลด environment จากไฟล์ .env
+    env_file:
+      - ./config/.env
+
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      - chromadb
+      - ollama
+
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+# -----------------------------
+# Volumes
+# -----------------------------
+volumes:
+  chroma_data:
+  ollama_data:
+
+# -----------------------------
+# Network
+# -----------------------------
+networks:
+  rag-network:
+    driver: bridge

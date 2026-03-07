@@ -1,7 +1,9 @@
 # src/routers/auth_router.py
-from fastapi import APIRouter, HTTPException
+
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from src.services.line_service import line_service
+from src.services.admin_service import admin_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,15 +14,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # ============================================================
 #  MODELS
 # ============================================================
+
 class EmployeeLoginRequest(BaseModel):
     empNo:      int
     password:   str
     lineUserId: str | None = None
-
-
-class AdminLoginRequest(BaseModel):
-    username: str
-    password: str
 
 
 class CheckLineRequest(BaseModel):
@@ -28,41 +26,43 @@ class CheckLineRequest(BaseModel):
 
 
 class UnbindRequest(BaseModel):
-    loginId: str
+    empNo: int  # ✅ แก้จาก loginId: str
+
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 # ============================================================
-#  EMPLOYEE
+#  ROUTES
 # ============================================================
 
 @router.post("/check-line")
 def check_line_user(request: CheckLineRequest):
-    """เช็คว่า LINE userId ผูกกับระบบแล้วหรือยัง"""
     if not request.lineUserId:
         raise HTTPException(status_code=400, detail="กรุณาระบุ lineUserId")
 
     user = line_service.check_line_user(request.lineUserId)
 
     return {
-        "status":    "success",
-        "isBound":   user.is_bound,
-        "empNo":     user.emp_no,
-        "fullName":  user.full_name if user.is_bound else None,
-        "empStatus": user.status    if user.is_bound else None,
-        "liffUrl":   line_service.get_liff_login_url(request.lineUserId) if not user.is_bound else None,
+        "status":   "success",
+        "isBound":  user.is_bound,
+        "empNo":    user.emp_no,
+        "fullName": user.full_name if user.is_bound else None,
+        "liffUrl":  line_service.get_liff_login_url() if not user.is_bound else None,
     }
 
 
 @router.post("/login")
 def employee_login(request: EmployeeLoginRequest):
-    """Employee login ผ่าน LIFF + ผูก LINE"""
+    logger.info(f"📥 Employee login: empNo={request.empNo}, lineUserId={request.lineUserId}")
+
     if not request.empNo or not request.password:
         raise HTTPException(status_code=400, detail="กรุณากรอก EmpNo และรหัสผ่าน")
 
-    logger.info(f"🔐 Employee login: EmpNo={request.empNo}")
-
     result = line_service.employee_login(
-        login_id     = str(request.empNo).zfill(6),
+        emp_no       = request.empNo,
         password     = request.password,
         line_user_id = request.lineUserId,
     )
@@ -71,43 +71,45 @@ def employee_login(request: EmployeeLoginRequest):
         "status":  "success",
         "message": result.message,
         "empNo":   result.emp_no,
-        "fname":   result.fname,
-        "name":    result.name,
-        "lname":   result.lname,
-        "token":   result.token,
     }
 
 
 @router.post("/unbind")
 def unbind_line(request: UnbindRequest):
     """ยกเลิกการผูก LINE"""
-    return line_service.unbind_line_user(request.loginId)
-
-
-@router.post("/verify-token")
-def verify_token(token: str):
-    """ตรวจสอบ token"""
-    return line_service.verify_token(token)
+    logger.info(f"👋 Unbind empNo={request.empNo}")
+    return line_service.unbind_line_user(request.empNo)  # ✅ แก้จาก request.loginId
 
 
 # ============================================================
-#  ADMIN
+#  ADMIN AUTH
 # ============================================================
 
 @router.post("/admin/login")
 def admin_login(request: AdminLoginRequest):
-    """Admin login"""
     if not request.username or not request.password:
         raise HTTPException(status_code=400, detail="กรุณากรอก Username และรหัสผ่าน")
 
     logger.info(f"🔐 Admin login: {request.username}")
 
-    data = line_service.admin_login(request.username, request.password)
+    data = admin_service.admin_login(request.username, request.password)
 
     return {
         "status":    "success",
-        "message":   data["message"],
-        "adminCode": data["admincode"],
-        "username":  data["username"],
-        "token":     data["token"],
+        "message":   data["res_message"],
+        "adminCode": data["res_code"],
+        "username":  data["res_username"],
+        "token":     data["res_token"],
+        "scpName":   data["res_scpname"],
+        "scpCode":   data["res_scpcode"], 
     }
+
+
+@router.post("/admin/logout")
+def admin_logout(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header ต้องเป็น Bearer token")
+
+    token = authorization.replace("Bearer ", "").strip()
+    logger.info("👋 Admin logout")
+    return admin_service.admin_logout(token)

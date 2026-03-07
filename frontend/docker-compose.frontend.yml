@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: rag-frontend
+    restart: unless-stopped
+    networks:
+      - rag-network
+

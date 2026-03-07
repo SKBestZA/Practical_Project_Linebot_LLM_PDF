@@ -53,9 +53,13 @@ def list_files(company: str, department: str) -> list[dict]:
         for f in sorted(upload_dir.glob("*.pdf"), key=lambda x: x.stat().st_mtime, reverse=True):
             stat = f.stat()
             files.append({
-                "filename":    f.name,
-                "size_kb":     round(stat.st_size / 1024, 2),
-                "uploaded_at": stat.st_mtime,
+                files.append({
+                    "name":         f.name,
+                    "size":         stat.st_size,
+                    "lastModified": stat.st_mtime * 1000,
+                    "department":   department.upper(),
+            })
+
             })
         return files
     except Exception as e:

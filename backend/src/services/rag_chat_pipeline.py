@@ -17,7 +17,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     # ════════════════════════════════════════════════
     if guardrail.check_greeting(question):
         return _ok(
-            "สวัสดีครับ! ผมคือผู้ช่วย AI มีเรื่องระเบียบการหรือสวัสดิการอะไรให้ช่วยไหมครับ?"
+            "สวัสดีค่ะ ดิฉันเป็นผู้ช่วย AI หากต้องการสอบถามเรื่องระเบียบหรือสวัสดิการของบริษัท สามารถถามได้เลยนะคะ ดิฉันยินดีช่วยค่ะ 😊"
             if lang == "th"
             else "Hello! I'm your AI Assistant. How can I help you with policies or benefits today?",
             context_used=False,
@@ -47,7 +47,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 
     if not filenames:
         return _ok(
-            "ขอโทษครับ ไม่พบเอกสารในระบบครับ"
+            "ขออภัยค่ะ ไม่พบเอกสารในระบบ"
             if lang == "th"
             else "I apologize, but no documents were found in the system.",
             context_used=False,
@@ -86,7 +86,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 
     if not best_per_file:
         return _ok(
-            "ขอโทษครับ ไม่พบข้อมูลเกี่ยวกับเรื่องนี้ในเอกสารระเบียบการครับ"
+            "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเกี่ยวกับเรื่องนี้ในเอกสารระเบียบของบริษัท"
             if lang == "th"
             else "I apologize, but I couldn't find relevant information in the policy documents.",
             context_used=False,
@@ -120,7 +120,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 
     if not final_results:
         return _ok(
-            "ขอโทษครับ ไม่พบข้อมูลที่เกี่ยวข้องเพิ่มเติมครับ"
+            "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเพิ่มเติมที่เกี่ยวข้อง"
             if lang == "th"
             else "I apologize, but no additional relevant information was found.",
             context_used=False,
@@ -155,7 +155,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 
     if not raw_answer:
         return _ok(
-            "ขอโทษครับ ระบบไม่สามารถสร้างคำตอบได้ในขณะนี้"
+            "ขออภัยค่ะ ระบบไม่สามารถสร้างคำตอบได้ในขณะนี้"
             if lang == "th"
             else "I'm sorry, the system was unable to generate an answer at this time.",
             context_used=True,
@@ -168,7 +168,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     if not output_safety["is_safe"]:
         logger.warning(f"🚫 OUTPUT BLOCKED: {raw_answer[:80]}")
         return _blocked(
-            "ขอโทษครับ คำตอบที่ระบบสร้างขึ้นไม่ผ่านการตรวจสอบความปลอดภัย"
+            "ขออภัยค่ะ คำตอบที่ระบบสร้างขึ้นไม่ผ่านการตรวจสอบความปลอดภัย"
             if lang == "th"
             else "I apologize, but the generated answer did not pass the safety check."
         )
