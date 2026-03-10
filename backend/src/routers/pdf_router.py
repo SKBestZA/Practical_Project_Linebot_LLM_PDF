@@ -60,6 +60,19 @@ def _get_company_name(scp_code: str) -> str:
         return scp_code
 
 
+# ============================================================
+#  Helper: แปลง SdpCode → SdpName
+# ============================================================
+def _get_department_name(sdp_code: str) -> str:
+    if sdp_code.lower() == "all":
+        return "all"
+    try:
+        result = supabase().table("setdepartment").select("sdpname").eq("sdpcode", sdp_code).single().execute()
+        return result.data["sdpname"] if result.data else sdp_code
+    except Exception:
+        return sdp_code
+
+
 # ──────────────────────────────────────────────
 # POST /documents/upload
 # ──────────────────────────────────────────────
@@ -77,13 +90,14 @@ async def upload_pdf(
 
     try:
         company_name = _get_company_name(company_code)
+        dept_name    = _get_department_name(department)
 
-        logger.info(f"📥 Upload: {file.filename} → [{company_name}/{department}]")
+        logger.info(f"📥 Upload: {file.filename} → [{company_name}/{dept_name}]")
 
         result = await process_upload_workflow(
             file=file,
             company=company_name,
-            department=department,
+            department=dept_name,
         )
 
         doc_id = _generate_doc_id()
@@ -93,7 +107,7 @@ async def upload_pdf(
             "lastdate":  str(date.today()),
             "admincode": admin["code"],
             "scpcode":   company_code,
-            "sdpcode":   None if department == "all" else department,
+            "sdpcode":   None if department.lower() == "all" else department,
         }).execute()
 
         logger.info(f"✅ Saved to DB: DocID={doc_id} by AdminCode={admin['code']}")
@@ -122,8 +136,9 @@ def list_documents(
     _require_identity(company_code, department)
 
     company_name = _get_company_name(company_code)
+    dept_name    = _get_department_name(department)
 
-    if department == "all":
+    if dept_name == "all":
         all_files = []
         dept_path = BASE_UPLOAD_DIR / company_name.lower()
         if dept_path.exists():
@@ -132,12 +147,12 @@ def list_documents(
                     all_files.extend(list_files(company_name, dept_dir.name))
         files = all_files
     else:
-        files = list_files(company_name, department)
+        files = list_files(company_name, dept_name)
 
     return {
         "status":     "success",
         "company":    company_name,
-        "department": department,
+        "department": dept_name,
         "total":      len(files),
         "files":      files,
     }
@@ -156,8 +171,9 @@ def download_document(
     _require_identity(company_code, department)
 
     company_name = _get_company_name(company_code)
+    dept_name    = _get_department_name(department)
 
-    file_path = get_file_path(company_name, department, filename)
+    file_path = get_file_path(company_name, dept_name, filename)
     if not file_path:
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์ '{filename}'")
 
@@ -182,19 +198,22 @@ def delete_document(
     _require_identity(company_code, department)
 
     company_name = _get_company_name(company_code)
-    source = os.path.splitext(filename)[0]
+    dept_name    = _get_department_name(department)
+    source       = os.path.splitext(filename)[0]
 
-    chroma = get_chroma_service()
-    chroma.delete_document_by_source(company_name, department, source)
-
-    file_path = get_file_path(company_name, department, filename)
+    # Check file exists first
+    file_path = get_file_path(company_name, dept_name, filename)
     if not file_path:
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์ '{filename}'")
+
+    chroma = get_chroma_service()
+    chroma.delete_document_by_source(company_name, dept_name, source)
+
     delete_file(str(file_path))
 
     supabase().table("document").delete().eq("name", source).execute()
 
-    logger.info(f"🗑️ Deleted [{company_name}/{department}]: {filename} by AdminCode={admin['code']}")
+    logger.info(f"🗑️ Deleted [{company_name}/{dept_name}]: {filename} by AdminCode={admin['code']}")
 
     return {
         "status":  "success",
@@ -220,29 +239,30 @@ async def update_document(
 
     try:
         company_name = _get_company_name(company_code)
+        dept_name    = _get_department_name(department)
 
-        logger.info(f"🔄 Update: {old_filename} → {file.filename} [{company_name}/{department}]")
+        logger.info(f"🔄 Update: {old_filename} → {file.filename} [{company_name}/{dept_name}]")
 
         old_source = os.path.splitext(old_filename)[0]
         new_source = os.path.splitext(file.filename)[0]
 
         chroma = get_chroma_service()
-        chroma.delete_document_by_source(company_name, department, old_source)
+        chroma.delete_document_by_source(company_name, dept_name, old_source)
 
-        old_file_path = get_file_path(company_name, department, old_filename)
+        old_file_path = get_file_path(company_name, dept_name, old_filename)
         if old_file_path:
             delete_file(str(old_file_path))
 
         result = await process_upload_workflow(
             file=file,
             company=company_name,
-            department=department,
+            department=dept_name,
         )
 
         supabase().table("document").update({
             "name":     new_source,
             "lastdate": str(date.today()),
-            "sdpcode":  None if department == "all" else department,
+            "sdpcode":  None if department.lower() == "all" else department,
         }).eq("name", old_source).execute()
 
         logger.info(f"✅ Updated: {old_source} → {new_source} by AdminCode={admin['code']}")

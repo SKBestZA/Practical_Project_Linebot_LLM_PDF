@@ -26,7 +26,7 @@ class CheckLineRequest(BaseModel):
 
 
 class UnbindRequest(BaseModel):
-    empNo: int  # ✅ แก้จาก loginId: str
+    empNo: int  
 
 
 class AdminLoginRequest(BaseModel):
@@ -78,7 +78,7 @@ def employee_login(request: EmployeeLoginRequest):
 def unbind_line(request: UnbindRequest):
     """ยกเลิกการผูก LINE"""
     logger.info(f"👋 Unbind empNo={request.empNo}")
-    return line_service.unbind_line_user(request.empNo)  # ✅ แก้จาก request.loginId
+    return line_service.unbind_line_user(request.empNo) 
 
 
 # ============================================================

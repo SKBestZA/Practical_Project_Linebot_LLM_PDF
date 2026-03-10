@@ -4,8 +4,8 @@ import { employeesApi } from '../lib/api';
 
 interface Employee {
   empno: number;
+  title: string;
   fname: string;
-  name: string;
   lname: string;
   birthday: string;
   sex: string;
@@ -14,6 +14,7 @@ interface Employee {
   startdate: string;
   enddate?: string;
   workstatus?: string;
+  loginstatus?: string;
 }
 
 interface Department {
@@ -23,8 +24,8 @@ interface Department {
 
 const EMPTY_FORM = {
   empNo: '',
+  title: '',
   fname: '',
-  name: '',
   lname: '',
   birthday: '',
   sex: 'M',
@@ -37,7 +38,10 @@ export function Employees() {
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [stats, setStats] = useState<{ totalEmployees: number; byDepartment: { dept: string; count: number }[] }>({ totalEmployees: 0, byDepartment: [] });
+  const [stats, setStats] = useState<{ totalEmployees: number; byDepartment: { dept: string; count: number }[] }>({
+    totalEmployees: 0,
+    byDepartment: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -50,7 +54,15 @@ export function Employees() {
     setError('');
     try {
       const res = await employeesApi.list(scpCode);
-      setEmployees(res.data.employees || []);
+
+      // ✅ เรียง active ขึ้นบนก่อน
+      const sorted = (res.data.employees || []).sort((a: Employee, b: Employee) => {
+        if (a.loginstatus === 'active' && b.loginstatus !== 'active') return -1;
+        if (a.loginstatus !== 'active' && b.loginstatus === 'active') return 1;
+        return 0;
+      });
+
+      setEmployees(sorted);
       setStats({ totalEmployees: res.data.totalEmployees, byDepartment: res.data.byDepartment });
       setDepartments(res.data.departments || []);
     } catch (e: any) {
@@ -72,9 +84,9 @@ export function Employees() {
     setEditing(emp);
     setFormData({
       empNo: String(emp.empno),
-      fname: emp.fname,
-      name: emp.name,
-      lname: emp.lname,
+      title: emp.title || '',
+      fname: emp.fname || '',
+      lname: emp.lname || '',
       birthday: emp.birthday?.slice(0, 10) || '',
       sex: emp.sex || 'M',
       sdpCode: emp.sdpcode,
@@ -87,6 +99,7 @@ export function Employees() {
     setShowModal(false);
     setEditing(null);
     setFormData(EMPTY_FORM);
+    setError('');
   };
 
   const handleSave = async () => {
@@ -94,8 +107,8 @@ export function Employees() {
     try {
       if (editing) {
         await employeesApi.update(editing.empno, {
+          title: formData.title,
           fname: formData.fname,
-          name: formData.name,
           lname: formData.lname,
           birthday: formData.birthday,
           sex: formData.sex,
@@ -104,8 +117,8 @@ export function Employees() {
       } else {
         await employeesApi.add({
           empNo: parseInt(formData.empNo),
+          title: formData.title,
           fname: formData.fname,
-          name: formData.name,
           lname: formData.lname,
           birthday: formData.birthday,
           sex: formData.sex,
@@ -139,8 +152,10 @@ export function Employees() {
           <h1 className="text-2xl font-bold text-gray-900">Employee Database</h1>
           <p className="text-gray-600 mt-1">Manage employee data for authentication</p>
         </div>
-        <button onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button
+          onClick={handleOpenAdd}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
           <Plus className="w-4 h-4" /> Add Employee
         </button>
       </div>
@@ -198,7 +213,7 @@ export function Employees() {
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-600 uppercase">Employee No.</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-600 uppercase">Birth Date</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-600 uppercase">Department</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-600 uppercase">Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-600 uppercase">LINE Status</th>
                   <th className="text-right px-6 py-3 text-xs font-medium text-gray-600 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -210,7 +225,7 @@ export function Employees() {
                         <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                           <Users className="w-4 h-4 text-gray-600" />
                         </div>
-                        <span className="font-medium text-gray-900">{emp.fname} {emp.name} {emp.lname}</span>
+                        <span className="font-medium text-gray-900">{emp.title} {emp.fname} {emp.lname}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-600">{emp.empno}</td>
@@ -223,19 +238,25 @@ export function Employees() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.workstatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.loginstatus === 'active'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                         }`}>
-                        {emp.workstatus === 'active' ? 'Active' : 'Inactive'}
+                        {emp.loginstatus === 'active' ? 'Linked' : 'Not Linked'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleOpenEdit(emp)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                        <button
+                          onClick={() => handleOpenEdit(emp)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(emp.empno)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                        <button
+                          onClick={() => handleDelete(emp.empno)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -265,34 +286,47 @@ export function Employees() {
               {!editing && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Employee No.</label>
-                  <input type="text" inputMode="numeric" value={formData.empNo}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.empNo}
                     onChange={(e) => setFormData({ ...formData, empNo: e.target.value.replace(/\D/g, '') })}
                     placeholder="000000"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               )}
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">คำนำหน้า</label>
-                  <input type="text" value={formData.fname}
-                    onChange={(e) => setFormData({ ...formData, fname: e.target.value })}
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="นาย"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อ</label>
-                  <input type="text" value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  <input
+                    type="text"
+                    value={formData.fname}
+                    onChange={(e) => setFormData({ ...formData, fname: e.target.value })}
                     placeholder="สมชาย"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">นามสกุล</label>
-                  <input type="text" value={formData.lname}
+                  <input
+                    type="text"
+                    value={formData.lname}
                     onChange={(e) => setFormData({ ...formData, lname: e.target.value })}
                     placeholder="ใจดี"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
 
@@ -301,16 +335,21 @@ export function Employees() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">วันเกิด</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="date" value={formData.birthday}
+                    <input
+                      type="date"
+                      value={formData.birthday}
                       onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">เพศ</label>
-                  <select value={formData.sex}
+                  <select
+                    value={formData.sex}
                     onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     <option value="M">ชาย</option>
                     <option value="F">หญิง</option>
                     <option value="O">อื่นๆ</option>
@@ -320,9 +359,11 @@ export function Employees() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">แผนก</label>
-                <select value={formData.sdpCode}
+                <select
+                  value={formData.sdpCode}
                   onChange={(e) => setFormData({ ...formData, sdpCode: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                   <option value="">เลือกแผนก</option>
                   {departments.map((d) => (
                     <option key={d.sdpcode} value={d.sdpcode}>{d.sdpname}</option>
@@ -335,9 +376,12 @@ export function Employees() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">วันที่เริ่มงาน</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="date" value={formData.startDate}
+                    <input
+                      type="date"
+                      value={formData.startDate}
                       onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
               )}
@@ -347,14 +391,21 @@ export function Employees() {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={handleCloseModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={handleCloseModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   Cancel
                 </button>
-                <button onClick={handleSave} disabled={saving ||
-                  !formData.name || !formData.lname || !formData.birthday || !formData.sdpCode ||
-                  (!editing && (!formData.empNo || !formData.startDate))}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <button
+                  onClick={handleSave}
+                  disabled={
+                    saving ||
+                    !formData.fname || !formData.lname || !formData.birthday || !formData.sdpCode ||
+                    (!editing && (!formData.empNo || !formData.startDate))
+                  }
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Save className="w-4 h-4" />
                   {saving ? 'กำลังบันทึก...' : editing ? 'Update' : 'Add'}
                 </button>

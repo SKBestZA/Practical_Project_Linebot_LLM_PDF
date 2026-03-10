@@ -54,8 +54,8 @@ CREATE TABLE SetDepartment (
 -- ============================================================
 CREATE TABLE Employee (
     EmpNo           INT          PRIMARY KEY,
+    Title           VARCHAR(20)  NOT NULL,
     Fname           VARCHAR(20)  NOT NULL,
-    Name            VARCHAR(20)  NOT NULL,
     Lname           VARCHAR(20)  NOT NULL,
     Birthday        DATE,
     Sex             CHAR(1)      CHECK (Sex IN ('M','F','O')),
@@ -104,6 +104,7 @@ CREATE TABLE QueryLog (
     QueryID   BIGSERIAL    PRIMARY KEY,
     EmpNo     INT          NOT NULL  REFERENCES Employee(EmpNo),
     Topic     VARCHAR(255),
+    Type      VARCHAR(10)  NOT NULL  DEFAULT 'query'  CHECK (Type IN ('query', 'blocked')),  -- ✅ เพิ่ม
     TimeStamp TIMESTAMPTZ  NOT NULL  DEFAULT NOW()
 );
 
@@ -161,12 +162,13 @@ FOR EACH ROW EXECUTE FUNCTION trgFillDeptCompanyName();
 -- 6. API FUNCTIONS
 -- ============================================================
 
+-- ✅ เปลี่ยน res_Name → res_Title ให้ตรงกับ column จริงใน Employee
 CREATE OR REPLACE FUNCTION fnCheckLineUser(pLineUserID VARCHAR(33))
 RETURNS TABLE (
     res_IsBound  BOOLEAN,
     res_EmpNo    INT,
+    res_Title    VARCHAR(20),  -- ✅ แก้จาก res_Name
     res_Fname    VARCHAR(20),
-    res_Name     VARCHAR(20),
     res_Lname    VARCHAR(20)
 )
 LANGUAGE plpgsql SECURITY DEFINER AS $$
@@ -186,9 +188,11 @@ BEGIN
         RETURN;
     END IF;
 
-    RETURN QUERY SELECT TRUE, vEmp.EmpNo, vEmp.Fname, vEmp.Name, vEmp.Lname;
+    -- ✅ ส่ง Title แทน Name
+    RETURN QUERY SELECT TRUE, vEmp.EmpNo, vEmp.Title, vEmp.Fname, vEmp.Lname;
 END; $$;
 
+-- ✅ แก้ typo DEF  AULT → DEFAULT
 CREATE OR REPLACE FUNCTION fnEmployeeLogin(
     pEmpNo      INT,
     pPassword   TEXT,
@@ -239,7 +243,7 @@ RETURNS TABLE (
     res_Username VARCHAR(20),
     res_Token    CHAR(36),
     res_ScpName  VARCHAR(20),
-    res_ScpCode  CHAR(6)        -- ✅ เพิ่ม
+    res_ScpCode  CHAR(6)
 )
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -274,13 +278,13 @@ BEGIN
 
     RETURN QUERY SELECT TRUE, 'เข้าสู่ระบบสำเร็จ'::TEXT,
         vAdmin.Code, vAdmin.Username, vToken,
-        vScpName, vAdmin.ScpCode;  -- ✅ เพิ่ม
+        vScpName, vAdmin.ScpCode;
 END; $$;
 
 CREATE OR REPLACE FUNCTION fnAdminChangePassword(
-    pAdminCode       CHAR(6),    
-    pCurrentPassword TEXT,       
-    pNewPassword     TEXT        
+    pAdminCode       CHAR(6),
+    pCurrentPassword TEXT,
+    pNewPassword     TEXT
 )
 RETURNS TABLE (
     res_Success BOOLEAN,

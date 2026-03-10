@@ -31,9 +31,9 @@ def verify_admin_token(authorization: str = Header(..., description="Bearer <tok
 # ============================================================
 class AddEmployeeRequest(BaseModel):
     empNo:     int
-    fname:     str
-    name:      str
-    lname:     str
+    title:     str   # ✅ required — DB NOT NULL
+    fname:     str   # ✅ required — DB NOT NULL
+    lname:     str   # ✅ required — DB NOT NULL
     birthday:  date
     sex:       str
     sdpCode:   str
@@ -41,8 +41,8 @@ class AddEmployeeRequest(BaseModel):
 
 
 class UpdateEmployeeRequest(BaseModel):
+    title:    str | None = None
     fname:    str | None = None
-    name:     str | None = None
     lname:    str | None = None
     birthday: date | None = None
     sex:      str | None = None
@@ -122,22 +122,19 @@ def get_employees(
     admin:   dict = Depends(verify_admin_token),
 ):
     try:
-        # ดึงแผนกของ company นี้ก่อน
         dept_result = supabase().table("setdepartment").select(
             "sdpcode, sdpname"
         ).eq("scpcode", scpCode).execute()
         departments = dept_result.data or []
         dept_codes  = [d["sdpcode"] for d in departments]
 
-        # ดึง employee เฉพาะแผนกของ company นี้
         result = supabase().table("employee").select(
-            "empno, fname, name, lname, birthday, sex, workstatus, startdate, enddate, sdpcode, "
+            "empno, title, fname, lname, birthday, sex, workstatus, loginstatus, startdate, enddate, sdpcode, "
             "setdepartment(sdpcode, sdpname)"
         ).in_("sdpcode", dept_codes).execute()
 
         employees = result.data or []
 
-        # flatten sdpname เข้า employee
         for emp in employees:
             dept = emp.pop("setdepartment", {}) or {}
             emp["sdpname"] = dept.get("sdpname", "")
@@ -167,8 +164,8 @@ def add_employee(
 ):
     emp_data = {
         "empno":     request.empNo,
+        "title":     request.title,
         "fname":     request.fname,
-        "name":      request.name,
         "lname":     request.lname,
         "birthday":  str(request.birthday),
         "sex":       request.sex,
@@ -187,8 +184,8 @@ def update_employee(
 ):
     try:
         update_data = {k: v for k, v in {
+            "title":     request.title,
             "fname":     request.fname,
-            "name":      request.name,
             "lname":     request.lname,
             "birthday":  str(request.birthday) if request.birthday else None,
             "sex":       request.sex,

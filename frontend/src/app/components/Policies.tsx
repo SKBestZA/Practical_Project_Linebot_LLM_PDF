@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { FileText, Upload, Trash2, Download, Edit2, X, Save } from 'lucide-react';
 import { documentsApi, employeesApi } from '../lib/api';
 
-const COMPANY = localStorage.getItem('adminScpCode') || '';
 
 interface PolicyFile {
   name: string;
@@ -17,6 +16,7 @@ interface Department {
 }
 
 export function Policies() {
+  const COMPANY = localStorage.getItem('adminScpCode') || '';
   const [policies, setPolicies] = useState<PolicyFile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,10 @@ export function Policies() {
     setLoading(true);
     try {
       const res = await documentsApi.list(COMPANY);
-      setPolicies(res.files || []);
+      const files = (res.files || []).filter(
+        (f) => f.name && f.name.trim() !== ''
+      );
+      setPolicies(files);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -62,8 +65,9 @@ export function Policies() {
     setUploading(true);
     try {
       await documentsApi.upload(selectedFile, COMPANY, formData.department);
-      await fetchPolicies();
       handleCloseModal();
+      await new Promise((r) => setTimeout(r, 500));
+      await fetchPolicies();
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -76,8 +80,9 @@ export function Policies() {
     setUploading(true);
     try {
       await documentsApi.update(selectedFile, COMPANY, editingFile.department, editingFile.name);
-      await fetchPolicies();
       handleCloseModal();
+      await new Promise((r) => setTimeout(r, 500));
+      await fetchPolicies();
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -110,7 +115,7 @@ export function Policies() {
   };
 
   const getDeptLabel = (sdpcode: string) => {
-    if (sdpcode === 'all') return 'All Employees';
+    if (sdpcode.toLowerCase() === 'all') return 'All Employees';
     return departments.find((d) => d.sdpcode === sdpcode)?.sdpname || sdpcode;
   };
 
@@ -197,7 +202,7 @@ export function Policies() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {policies.map((policy) => (
-                  <tr key={policy.name} className="hover:bg-gray-50">
+                  <tr key={`${policy.department}-${policy.name}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
@@ -266,7 +271,13 @@ export function Policies() {
                   {editingFile ? 'Replace PDF File' : 'Select PDF File'}
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-                  <input type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" id="file-upload" />
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                  />
                   <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
                     <Upload className="w-8 h-8 text-gray-400" />
                     <span className="text-sm font-medium text-gray-900">Click to upload</span>
@@ -300,9 +311,7 @@ export function Policies() {
                 </select>
               </div>
 
-              {error && (
-                <p className="text-sm text-red-600">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-600">{error}</p>}
 
               <div className="flex gap-3 pt-4">
                 <button

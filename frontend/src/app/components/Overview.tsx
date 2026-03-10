@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, MessageSquare, FileText, CheckCircle2, Users } from 'lucide-react';
+import { TrendingUp, MessageSquare, FileText, Users } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -8,7 +8,8 @@ import {
 import { dashboardApi } from '../lib/api';
 
 export function Overview() {
-  const scpCode = localStorage.getItem('adminCode') || '';
+  // ✅ แก้จาก 'adminCode' → 'adminScpCode'
+  const scpCode = localStorage.getItem('adminScpCode') || '';
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [topQueries, setTopQueries] = useState<any[]>([]);

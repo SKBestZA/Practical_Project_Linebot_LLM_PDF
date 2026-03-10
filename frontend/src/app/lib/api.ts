@@ -1,6 +1,6 @@
 // src/lib/api.ts
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 function getToken(): string | null {
     return localStorage.getItem('adminToken');
@@ -158,10 +158,27 @@ export const employeesApi = {
             `/admin/employees?scpCode=${scpCode}`
         ),
 
-    add: (data: { empNo: number; fname: string; name: string; lname: string; birthday: string; sex: string; sdpCode: string; startDate: string }) =>
+    add: (data: {
+        empNo: number;
+        title: string;  // ✅ คำนำหน้า
+        fname: string;  // ✅ ชื่อจริง
+        lname: string;
+        birthday: string;
+        sex: string;
+        sdpCode: string;
+        startDate: string;
+    }) =>
         request('/admin/employees', { method: 'POST', body: JSON.stringify(data) }),
 
-    update: (empNo: number, data: Partial<{ fname: string; name: string; lname: string; birthday: string; sex: string; sdpCode: string; endDate: string }>) =>
+    update: (empNo: number, data: Partial<{
+        title: string;  // ✅ คำนำหน้า
+        fname: string;  // ✅ ชื่อจริง
+        lname: string;
+        birthday: string;
+        sex: string;
+        sdpCode: string;
+        endDate: string;
+    }>) =>
         request(`/admin/employees/${empNo}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     delete: (empNo: number) =>

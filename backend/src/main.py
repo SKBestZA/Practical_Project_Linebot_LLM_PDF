@@ -37,12 +37,10 @@ app = FastAPI(
 )
 
 from src.routers.auth_router import router as auth_router
-from src.routers.chat_router import router as chat_router
 from src.routers.pdf_router  import router as pdf_router
 from src.routers.admin_router import router as admin_router
 from src.routers.webhook_router import router as webhook_router
 app.include_router(admin_router)
 app.include_router(auth_router)
-app.include_router(chat_router)
 app.include_router(pdf_router)
 app.include_router(webhook_router)

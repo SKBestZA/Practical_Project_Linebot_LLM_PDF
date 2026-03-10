@@ -10,7 +10,6 @@ BASE_UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
 
 
 def _get_upload_path(company: str, department: str) -> Path:
-    """data/uploads/{company}/{department}/"""
     path = BASE_UPLOAD_DIR / company.lower() / department.lower()
     path.mkdir(parents=True, exist_ok=True)
     return path
@@ -53,13 +52,10 @@ def list_files(company: str, department: str) -> list[dict]:
         for f in sorted(upload_dir.glob("*.pdf"), key=lambda x: x.stat().st_mtime, reverse=True):
             stat = f.stat()
             files.append({
-                files.append({
-                    "name":         f.name,
-                    "size":         stat.st_size,
-                    "lastModified": stat.st_mtime * 1000,
-                    "department":   department.upper(),
-            })
-
+                "name":         f.name,
+                "size":         stat.st_size,
+                "lastModified": stat.st_mtime * 1000,
+                "department":   department.lower(),  # ✅ lowercase ให้ตรงกับ frontend
             })
         return files
     except Exception as e:

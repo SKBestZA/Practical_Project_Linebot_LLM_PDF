@@ -48,10 +48,8 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
-
-    ports:
-      - "8000:8000"
-
+    expose:
+      - "8000"
     depends_on:
       - chromadb
       - ollama

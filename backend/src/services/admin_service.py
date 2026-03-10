@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException
 from src.config.db import supabase
-from datetime import date,timedelta
+from datetime import date, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,11 +71,15 @@ class AdminService:
         try:
             db = supabase()
 
-            total_conv      = db.table("querylog").select("queryid", count="exact").execute()
+            # นับเฉพาะ type='query' — ไม่รวม blocked
+            total_conv      = db.table("querylog").select("queryid", count="exact").eq("type", "query").execute()
             active_policies = db.table("document").select("docid", count="exact").execute()
-            weekly          = db.table("querylog").select("timestamp").gte(
+            weekly          = db.table("querylog").select("timestamp").eq("type", "query").gte(
                 "timestamp", str(date.today() - timedelta(days=7))
             ).execute()
+
+            # ✅ นับ employee ที่ loginstatus = 'active' (ผูก LINE แล้ว session ยังอยู่)
+            active_emp = db.table("employee").select("empno", count="exact").eq("loginstatus", "active").execute()
 
             most_queried = db.table("querydetail").select("docid, document(name)").execute()
             doc_count: dict = {}
@@ -93,6 +97,7 @@ class AdminService:
                 "totalConversations":  total_conv.count or 0,
                 "activePolicies":      active_policies.count or 0,
                 "weeklyConversations": len(weekly.data or []),
+                "activeEmployees":     active_emp.count or 0,  # ✅
                 "mostQueriedPolicies": most_queried_list,
             }
 
@@ -101,11 +106,18 @@ class AdminService:
             raise HTTPException(status_code=500, detail=str(e))
 
     # --------------------------------------------------------
-    # 4. Top Queries    
+    # 4. Top Queries — กรองเฉพาะ type='query' ไม่รวม blocked
     # --------------------------------------------------------
     def get_top_queries(self, limit: int = 10) -> list:
         try:
-            result = supabase().table("querylog").select("topic").not_.is_("topic", "null").execute()
+            result = (
+                supabase()
+                .table("querylog")
+                .select("topic")
+                .eq("type", "query")
+                .not_.is_("topic", "null")
+                .execute()
+            )
 
             topic_count: dict = {}
             for row in result.data or []:
@@ -145,6 +157,9 @@ class AdminService:
             }
 
         except Exception as e:
+            error_msg = str(e).lower()
+            if "duplicate key" in error_msg or "unique constraint" in error_msg:
+                raise HTTPException(status_code=409, detail=f"รหัสพนักงาน {emp_data['empno']} มีอยู่ในระบบแล้ว")
             logger.error(f"❌ add_employee error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 

@@ -7,7 +7,6 @@ import {
   Settings,
   Menu,
   X,
-  Search,
   User,
   LogOut,
   Bot,
@@ -25,7 +24,7 @@ export function DashboardLayout() {
     try {
       await authApi.adminLogout();
     } catch (_) {
-      // silent fail — clear ต่อไปเลย
+      // silent fail
     } finally {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminCode');
@@ -43,6 +42,7 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Overlay สำหรับ mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-gray-900/50 z-40 lg:hidden"
@@ -50,6 +50,7 @@ export function DashboardLayout() {
         />
       )}
 
+      {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
@@ -62,7 +63,10 @@ export function DashboardLayout() {
               </div>
               <span className="font-semibold text-gray-900">Policy Chatbot</span>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-gray-500 hover:text-gray-700"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -77,7 +81,9 @@ export function DashboardLayout() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-100'
                       }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -109,28 +115,19 @@ export function DashboardLayout() {
         </div>
       </aside>
 
+      {/* Main content — ไม่มี header แล้ว */}
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-700">
+        <main className="p-4 sm:p-6 lg:p-8">
+          {/* ✅ hamburger เฉพาะ mobile อยู่บน content */}
+          <div className="lg:hidden mb-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
               <Menu className="w-6 h-6" />
             </button>
-            <div className="flex items-center flex-1 gap-4 lg:gap-8">
-              <div className="hidden sm:flex items-center flex-1 max-w-md">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
-        </header>
 
-        <main className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

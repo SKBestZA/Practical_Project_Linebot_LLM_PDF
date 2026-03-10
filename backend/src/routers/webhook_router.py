@@ -1,5 +1,4 @@
-# src/routers/webhook_router.py
-from fastapi import APIRouter, Request, HTTPException, Header
+from fastapi import APIRouter, Request, HTTPException, Header, BackgroundTasks
 from src.services.line_service import get_line_service
 from src.services.rag_chat_pipeline import process_chat_workflow
 from src.config.db import supabase
@@ -19,8 +18,8 @@ LINE_API = "https://api.line.me/v2/bot/message"
 
 
 def _verify_signature(body: bytes, signature: str) -> bool:
-    secret = os.getenv("LINE_CHANNEL_SECRET", "")
-    hash_ = hmac.new(secret.encode(), body, hashlib.sha256).digest()
+    secret   = os.getenv("LINE_CHANNEL_SECRET", "")
+    hash_    = hmac.new(secret.encode(), body, hashlib.sha256).digest()
     expected = base64.b64encode(hash_).decode()
     return hmac.compare_digest(expected, signature)
 
@@ -48,14 +47,14 @@ async def _push(line_user_id: str, messages: list):
 def _flex_login(line_user_id: str) -> dict:
     liff_url = os.getenv("LIFF_URL", "https://your-liff-url.com/login")
     return {
-        "type": "flex",
-        "altText": "กรุณาเข้าสู่ระบบก่อนใช้งาน",
+        "type":     "flex",
+        "altText":  "กรุณาเข้าสู่ระบบก่อนใช้งาน",
         "contents": {
             "type": "bubble",
             "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "md",
+                "type":     "box",
+                "layout":   "vertical",
+                "spacing":  "md",
                 "contents": [
                     {"type": "text", "text": "🔐 เข้าสู่ระบบ", "weight": "bold", "size": "xl"},
                     {"type": "text", "text": "กรุณาเข้าสู่ระบบเพื่อผูกบัญชีและใช้งาน Policy Chatbot",
@@ -63,17 +62,17 @@ def _flex_login(line_user_id: str) -> dict:
                 ],
             },
             "footer": {
-                "type": "box",
+                "type":   "box",
                 "layout": "vertical",
                 "contents": [
                     {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#00C851",
+                        "type":   "button",
+                        "style":  "primary",
+                        "color":  "#00C851",
                         "action": {
-                            "type": "uri",
+                            "type":  "uri",
                             "label": "เข้าสู่ระบบ",
-                            "uri": f"{liff_url}?lineUserId={line_user_id}",
+                            "uri":   f"{liff_url}?lineUserId={line_user_id}",
                         },
                     }
                 ],
@@ -87,14 +86,16 @@ def _text(text: str) -> dict:
 
 
 async def _typing_loop(line_user_id: str, stop_event: asyncio.Event):
-    """วนส่ง loading indicator ทุก 4 วินาที จนกว่า RAG จะเสร็จ"""
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
     async with httpx.AsyncClient() as client:
         while not stop_event.is_set():
             try:
                 await client.post(
                     "https://api.line.me/v2/bot/chat/loading/start",
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type":  "application/json",
+                    },
                     json={"chatId": line_user_id, "loadingSeconds": 5},
                 )
             except Exception:
@@ -105,10 +106,20 @@ async def _typing_loop(line_user_id: str, stop_event: asyncio.Event):
                 pass
 
 
-async def _save_query_log(emp_no: int, topic: str, doc_id: str = None):
+async def _save_query_log(
+    emp_no:   int,
+    topic:    str,
+    log_type: str = "query",  # 'query' | 'blocked'
+    doc_id:   str = None,
+):
     try:
-        db = supabase()
-        log = db.table("querylog").insert({"empno": emp_no, "topic": topic}).execute()
+        db  = supabase()
+        log = db.table("querylog").insert({
+            "empno": emp_no,
+            "topic": topic,
+            "type":  log_type,
+        }).execute()
+
         if doc_id and log.data:
             query_id = log.data[0]["queryid"]
             db.table("querydetail").insert({
@@ -116,13 +127,35 @@ async def _save_query_log(emp_no: int, topic: str, doc_id: str = None):
                 "seq":     1,
                 "docid":   doc_id,
             }).execute()
+
+        logger.info(f"📝 Log saved | empno={emp_no} | topic={topic} | type={log_type} | docid={doc_id}")
+
     except Exception as e:
         logger.error(f"❌ save_query_log error: {e}", exc_info=True)
 
 
+def _build_answer(result: dict) -> str:
+    """✅ ต่อท้ายชื่อไฟล์อ้างอิงถ้ามี"""
+    answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
+
+    # ดึงชื่อไฟล์ที่ไม่ซ้ำจาก sources
+    sources  = result.get("sources", [])
+    filenames = list(dict.fromkeys(
+        s["metadata"].get("original_filename", "")
+        for s in sources
+        if s.get("metadata", {}).get("original_filename")
+    ))
+
+    if filenames:
+        answer += "\n\n📄 อ้างอิงจาก: " + ", ".join(filenames)
+
+    return answer
+
+
 @router.post("/line")
 async def line_webhook(
-    request: Request,
+    request:          Request,
+    background_tasks: BackgroundTasks,
     x_line_signature: str = Header(...),
 ):
     body = await request.body()
@@ -132,14 +165,18 @@ async def line_webhook(
 
     payload = await request.json()
     for event in payload.get("events", []):
-        await _handle_event(event)
+        background_tasks.add_task(_run_event, event)
 
     return {"status": "ok"}
 
 
+def _run_event(event: dict):
+    """Wrapper สำหรับรัน async _handle_event ใน BackgroundTask (threadpool)"""
+    asyncio.run(_handle_event(event))
+
+
 async def _handle_event(event: dict):
     event_type   = event.get("type")
-    reply_token  = event.get("replyToken")
     source       = event.get("source", {})
     line_user_id = source.get("userId")
 
@@ -150,13 +187,11 @@ async def _handle_event(event: dict):
         msg_type = event.get("message", {}).get("type")
         if msg_type == "text":
             text = event.get("message", {}).get("text", "").strip()
-            await _handle_text(reply_token, line_user_id, text)
+            await _handle_text(line_user_id, text)
 
     elif event_type == "follow":
-
         bot_name = os.getenv("BOT_NAME", "Policy Chatbot")
-
-        await _reply(reply_token, [
+        await _push(line_user_id, [
             _text(
                 f"👋 สวัสดีครับ! ยินดีต้อนรับสู่ {bot_name}\n\n"
                 f"🤖 ผมคือ AI Assistant ที่ช่วยตอบคำถามเกี่ยวกับนโยบายและระเบียบของบริษัท\n\n"
@@ -169,13 +204,12 @@ async def _handle_event(event: dict):
         ])
 
 
-async def _handle_text(reply_token: str, line_user_id: str, text: str):
+async def _handle_text(line_user_id: str, text: str):
     service = get_line_service()
-    user = service.check_line_user(line_user_id)
+    user    = service.check_line_user(line_user_id)
 
-    # SQL กรองแล้ว — is_bound=False หมายถึง ยังไม่ผูก / session หมด / logout
     if not user.is_bound:
-        await _reply(reply_token, [
+        await _push(line_user_id, [
             _text("⚠️ กรุณาเข้าสู่ระบบก่อนใช้งาน"),
             _flex_login(line_user_id),
         ])
@@ -203,16 +237,14 @@ async def _handle_text(reply_token: str, line_user_id: str, text: str):
         await typing_task
 
         await _save_query_log(
-            emp_no = user.emp_no,
-            topic  = text,
-            doc_id = result.get("source_doc_id"),
+            emp_no=user.emp_no,
+            topic=result.get("topic", "ทั่วไป"),
+            log_type="blocked" if result["status"] == "blocked" else "query",
+            doc_id=result.get("source_doc_id"),
         )
 
-        if result["status"] == "blocked":
-            await _push(line_user_id, [_text("⚠️ ไม่สามารถตอบคำถามนี้ได้")])
-        else:
-            answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
-            await _push(line_user_id, [_text(answer)])
+        # ✅ ใช้ _build_answer แนบชื่อไฟล์ต่อท้าย
+        await _push(line_user_id, [_text(_build_answer(result))])
 
     except Exception as e:
         stop_typing.set()
