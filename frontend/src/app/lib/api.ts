@@ -78,7 +78,6 @@ export const authApi = {
     adminLogout: () =>
         request('/auth/admin/logout', { method: 'POST' }),
 
-    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     checkLine: (lineUserId: string) =>
         publicRequest<{
             status: string;
@@ -91,14 +90,12 @@ export const authApi = {
             { method: 'POST', body: JSON.stringify({ lineUserId }) }
         ),
 
-    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     employeeLogin: (empNo: number, password: string, lineUserId?: string) =>
         publicRequest<{ status: string; message: string; empNo: number }>(
             '/auth/login',
             { method: 'POST', body: JSON.stringify({ empNo, password, lineUserId }) }
         ),
 
-    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     unbind: (empNo: number) =>
         publicRequest(
             '/auth/unbind',
