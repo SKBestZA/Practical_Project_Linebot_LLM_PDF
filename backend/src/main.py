@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 from src.config.db import run_sql_file
 import logging
 import os
-
+from src.routers.auth_router import router as auth_router
+from src.routers.pdf_router  import router as pdf_router
+from src.routers.admin_router import router as admin_router
+from src.routers.webhook_router import router as webhook_router
 logger = logging.getLogger(__name__)
 
 
@@ -36,10 +39,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-from src.routers.auth_router import router as auth_router
-from src.routers.pdf_router  import router as pdf_router
-from src.routers.admin_router import router as admin_router
-from src.routers.webhook_router import router as webhook_router
+
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(pdf_router)

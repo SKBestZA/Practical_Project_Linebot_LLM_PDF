@@ -6,6 +6,7 @@ function getToken(): string | null {
     return localStorage.getItem('adminToken');
 }
 
+// ─── Admin-only request (มี token + redirect on 401) ──
 async function request<T>(
     path: string,
     options: RequestInit = {}
@@ -37,6 +38,27 @@ async function request<T>(
     return res.json();
 }
 
+// ─── Public request (ไม่มี token, ไม่ redirect) ───────
+async function publicRequest<T>(
+    path: string,
+    options: RequestInit = {}
+): Promise<T> {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        },
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    return res.json();
+}
+
 // ─── Auth ────────────────────────────────────────
 export const authApi = {
     adminLogin: (username: string, password: string) =>
@@ -56,31 +78,54 @@ export const authApi = {
     adminLogout: () =>
         request('/auth/admin/logout', { method: 'POST' }),
 
+    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     checkLine: (lineUserId: string) =>
-        request<{ status: string; isBound: boolean; empNo: number | null; fullName: string | null; liffUrl: string | null }>(
+        publicRequest<{
+            status: string;
+            isBound: boolean;
+            empNo: number | null;
+            fullName: string | null;
+            liffUrl: string | null;
+        }>(
             '/auth/check-line',
             { method: 'POST', body: JSON.stringify({ lineUserId }) }
         ),
 
+    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     employeeLogin: (empNo: number, password: string, lineUserId?: string) =>
-        request<{ status: string; message: string; empNo: number }>(
+        publicRequest<{ status: string; message: string; empNo: number }>(
             '/auth/login',
             { method: 'POST', body: JSON.stringify({ empNo, password, lineUserId }) }
         ),
 
+    // ✅ ใช้ publicRequest — ไม่ redirect ไป admin login
     unbind: (empNo: number) =>
-        request('/auth/unbind', { method: 'POST', body: JSON.stringify({ empNo }) }),
+        publicRequest(
+            '/auth/unbind',
+            { method: 'POST', body: JSON.stringify({ empNo }) }
+        ),
 };
 
 // ─── Dashboard ───────────────────────────────────
 export const dashboardApi = {
     getDashboard: (scpCode: string) =>
-        request<{ status: string; data: { totalConversations: number; activePolicies: number; weeklyConversations: number; mostQueriedPolicies: { docId: string; count: number }[] } }>(
+        request<{
+            status: string;
+            data: {
+                totalConversations: number;
+                activePolicies: number;
+                weeklyConversations: number;
+                mostQueriedPolicies: { docId: string; count: number }[];
+            };
+        }>(
             `/admin/dashboard?scpCode=${scpCode}`
         ),
 
     getTopQueries: (scpCode: string, limit = 10) =>
-        request<{ status: string; data: { topic: string; count: number; percentage: number }[] }>(
+        request<{
+            status: string;
+            data: { topic: string; count: number; percentage: number }[];
+        }>(
             `/admin/top-queries?scpCode=${scpCode}&limit=${limit}`
         ),
 };
@@ -88,7 +133,16 @@ export const dashboardApi = {
 // ─── Documents ───────────────────────────────────
 export const documentsApi = {
     list: (companyCode: string, department = 'all') =>
-        request<{ status: string; total: number; files: { name: string; size: number; lastModified: string; department: string }[] }>(
+        request<{
+            status: string;
+            total: number;
+            files: {
+                name: string;
+                size: number;
+                lastModified: string;
+                department: string;
+            }[];
+        }>(
             `/documents/list?company_code=${companyCode}&department=${department}`
         ),
 
@@ -130,9 +184,10 @@ export const documentsApi = {
     },
 
     delete: (companyCode: string, department: string, filename: string) =>
-        request(`/documents/delete?company_code=${companyCode}&department=${department}&filename=${encodeURIComponent(filename)}`, {
-            method: 'DELETE',
-        }),
+        request(
+            `/documents/delete?company_code=${companyCode}&department=${department}&filename=${encodeURIComponent(filename)}`,
+            { method: 'DELETE' }
+        ),
 
     download: async (companyCode: string, department: string, filename: string) => {
         const token = getToken();
@@ -154,14 +209,22 @@ export const documentsApi = {
 // ─── Employees ───────────────────────────────────
 export const employeesApi = {
     list: (scpCode: string) =>
-        request<{ status: string; data: { totalEmployees: number; byDepartment: { dept: string; count: number }[]; departments: { sdpcode: string; sdpname: string }[]; employees: any[] } }>(
+        request<{
+            status: string;
+            data: {
+                totalEmployees: number;
+                byDepartment: { dept: string; count: number }[];
+                departments: { sdpcode: string; sdpname: string }[];
+                employees: any[];
+            };
+        }>(
             `/admin/employees?scpCode=${scpCode}`
         ),
 
     add: (data: {
         empNo: number;
-        title: string;  // ✅ คำนำหน้า
-        fname: string;  // ✅ ชื่อจริง
+        title: string;
+        fname: string;
         lname: string;
         birthday: string;
         sex: string;
@@ -171,8 +234,8 @@ export const employeesApi = {
         request('/admin/employees', { method: 'POST', body: JSON.stringify(data) }),
 
     update: (empNo: number, data: Partial<{
-        title: string;  // ✅ คำนำหน้า
-        fname: string;  // ✅ ชื่อจริง
+        title: string;
+        fname: string;
         lname: string;
         birthday: string;
         sex: string;

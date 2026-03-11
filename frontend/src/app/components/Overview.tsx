@@ -8,7 +8,6 @@ import {
 import { dashboardApi } from '../lib/api';
 
 export function Overview() {
-  // ✅ แก้จาก 'adminCode' → 'adminScpCode'
   const scpCode = localStorage.getItem('adminScpCode') || '';
 
   const [dashboard, setDashboard] = useState<any>(null);
@@ -53,7 +52,7 @@ export function Overview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Policy Chatbot Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">PoliChatbot Dashboard</h1>
         <p className="mt-1 text-sm text-gray-500">Monitor your AI-powered policy assistant performance</p>
       </div>
 

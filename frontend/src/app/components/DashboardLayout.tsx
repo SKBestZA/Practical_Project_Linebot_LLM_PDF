@@ -61,7 +61,7 @@ export function DashboardLayout() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Bot className="w-5 h-5 text-white" />
               </div>
-              <span className="font-semibold text-gray-900">Policy Chatbot</span>
+              <span className="font-semibold text-gray-900">PoliChatbot</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}

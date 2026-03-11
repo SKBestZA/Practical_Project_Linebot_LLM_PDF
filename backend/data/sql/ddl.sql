@@ -111,7 +111,6 @@ CREATE TABLE QueryLog (
 CREATE TABLE QueryDetail (
     QueryID  BIGINT    NOT NULL  REFERENCES QueryLog(QueryID),
     Seq      INT       NOT NULL,
-    Page     VARCHAR(100),
     DocID    CHAR(6)   REFERENCES Document(DocID),
     PRIMARY KEY (QueryID, Seq)
 );
@@ -188,11 +187,10 @@ BEGIN
         RETURN;
     END IF;
 
-    -- ✅ ส่ง Title แทน Name
     RETURN QUERY SELECT TRUE, vEmp.EmpNo, vEmp.Title, vEmp.Fname, vEmp.Lname;
 END; $$;
 
--- ✅ แก้ typo DEF  AULT → DEFAULT
+
 CREATE OR REPLACE FUNCTION fnEmployeeLogin(
     pEmpNo      INT,
     pPassword   TEXT,

@@ -18,9 +18,9 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     # ════════════════════════════════════════════════
     if guardrail.check_greeting(question):
         return _ok(
-            "สวัสดีค่ะ ดิฉันเป็นผู้ช่วย AI หากต้องการสอบถามเรื่องระเบียบหรือสวัสดิการของบริษัท สามารถถามได้เลยนะคะ ดิฉันยินดีช่วยค่ะ 😊"
+            "สวัสดีค่ะ ดิฉันเป็นผู้ช่วย AI ฉันชื่อน้องโพลิ หากต้องการสอบถามเรื่องระเบียบหรือสวัสดิการของบริษัท สามารถถามได้เลยนะคะ ดิฉันยินดีช่วยค่ะ 😊"
             if lang == "th" else
-            "Hello! I'm your AI Assistant. How can I help you with policies or benefits today?",
+            "Hello! I'm your AI Assistant. My name is Poli. How can I help you with policies or benefits today?",
             topic="ทักทาย",
         )
 
@@ -164,7 +164,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     # Lookup docid จาก Supabase ด้วย original_filename ของ best chunk
     source_doc_id = None
     if results:
-        best_filename = results[0]["metadata"].get("original_filename")
+        best_filename = results[0]["metadata"].get("original_filename", "").replace(".pdf", "")
         if best_filename:
             try:
                 doc_res = supabase().table("document").select("docid").eq("name", best_filename).single().execute()

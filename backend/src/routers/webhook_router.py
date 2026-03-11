@@ -57,7 +57,7 @@ def _flex_login(line_user_id: str) -> dict:
                 "spacing":  "md",
                 "contents": [
                     {"type": "text", "text": "🔐 เข้าสู่ระบบ", "weight": "bold", "size": "xl"},
-                    {"type": "text", "text": "กรุณาเข้าสู่ระบบเพื่อผูกบัญชีและใช้งาน Policy Chatbot",
+                    {"type": "text", "text": "กรุณาเข้าสู่ระบบเพื่อผูกบัญชีและใช้งาน PoliChatbot",
                      "wrap": True, "color": "#666666", "size": "sm"},
                 ],
             },
@@ -109,7 +109,7 @@ async def _typing_loop(line_user_id: str, stop_event: asyncio.Event):
 async def _save_query_log(
     emp_no:   int,
     topic:    str,
-    log_type: str = "query",  # 'query' | 'blocked'
+    log_type: str = "query",
     doc_id:   str = None,
 ):
     try:
@@ -135,11 +135,9 @@ async def _save_query_log(
 
 
 def _build_answer(result: dict) -> str:
-    """✅ ต่อท้ายชื่อไฟล์อ้างอิงถ้ามี"""
     answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
 
-    # ดึงชื่อไฟล์ที่ไม่ซ้ำจาก sources
-    sources  = result.get("sources", [])
+    sources   = result.get("sources", [])
     filenames = list(dict.fromkeys(
         s["metadata"].get("original_filename", "")
         for s in sources
@@ -171,7 +169,6 @@ async def line_webhook(
 
 
 def _run_event(event: dict):
-    """Wrapper สำหรับรัน async _handle_event ใน BackgroundTask (threadpool)"""
     asyncio.run(_handle_event(event))
 
 
@@ -190,7 +187,7 @@ async def _handle_event(event: dict):
             await _handle_text(line_user_id, text)
 
     elif event_type == "follow":
-        bot_name = os.getenv("BOT_NAME", "Policy Chatbot")
+        bot_name = os.getenv("BOT_NAME", "PoliChatbot")
         await _push(line_user_id, [
             _text(
                 f"👋 สวัสดีครับ! ยินดีต้อนรับสู่ {bot_name}\n\n"
@@ -243,7 +240,6 @@ async def _handle_text(line_user_id: str, text: str):
             doc_id=result.get("source_doc_id"),
         )
 
-        # ✅ ใช้ _build_answer แนบชื่อไฟล์ต่อท้าย
         await _push(line_user_id, [_text(_build_answer(result))])
 
     except Exception as e:
