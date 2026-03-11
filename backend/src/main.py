@@ -23,8 +23,11 @@ async def lifespan(app: FastAPI):
     # จาก src/config -> ขึ้น 2 ชั้น -> /app
 
     sql_dir = os.path.join(base_dir, "data", "sql")
-    run_sql_file(os.path.join(sql_dir, "ddl.sql"))
-    run_sql_file(os.path.join(sql_dir, "dml.sql"))
+    # use for run deploy project
+    run_sql_file(os.path.join(sql_dir,"final_ddl.sql"))
+    # use for develop project
+    # run_sql_file(os.path.join(sql_dir, "ddl.sql"))
+    # run_sql_file(os.path.join(sql_dir, "dml.sql"))
 
     yield
     logger.info("🛑 Shutting down...")
