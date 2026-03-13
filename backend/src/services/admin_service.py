@@ -78,7 +78,7 @@ class AdminService:
                 "timestamp", str(date.today() - timedelta(days=7))
             ).execute()
 
-            # ✅ นับ employee ที่ loginstatus = 'active' (ผูก LINE แล้ว session ยังอยู่)
+            #นับ employee ที่ loginstatus = 'active' (ผูก LINE แล้ว session ยังอยู่)
             active_emp = db.table("employee").select("empno", count="exact").eq("loginstatus", "active").execute()
 
             most_queried = db.table("querydetail").select("docid, document(name)").execute()

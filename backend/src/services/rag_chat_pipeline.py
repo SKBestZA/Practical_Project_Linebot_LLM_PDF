@@ -38,18 +38,46 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     # ด่าน 2 — Hybrid Retrieval
     # ════════════════════════════════════════════════
     chroma_service = get_chroma_service()
+    dept_clean     = department.strip().lower() if department and department.strip().lower() != "all" else None
 
-    # ค้นทั้ง department จริง + all เสมอ
-    dept_list = ["all"]
-    if department and department.strip().lower() != "all":
-        dept_list.append(department.strip().lower())
+    logger.info(f"🔍 Searching [{company}] | dept={dept_clean or 'all only'}")
 
-    logger.info(f"🔍 Searching [{company}] | dept_list={dept_list}")
+    # ────────────────────────────────────────────────
+    # Phase 1: ค้นแยก all + department แล้วรวม score
+    # ────────────────────────────────────────────────
 
-    filenames = chroma_service.get_unique_filenames(company=company, dept_list=dept_list)
-    logger.info(f"📂 Filenames found: {filenames}")
+    # filename → best avg_score (เอาดีที่สุดจากทั้ง 2 collection)
+    score_map: dict[str, float] = {}
 
-    if not filenames:
+    def _score_files(dept_list: list[str]):
+        filenames = chroma_service.get_unique_filenames(company=company, dept_list=dept_list)
+        logger.info(f"📂 [{dept_list}] found: {filenames}")
+        for filename in filenames:
+            results = chroma_service.query_by_filename(
+                question=question,
+                company=company,
+                dept_list=dept_list,
+                filename=filename,
+                top_k=5,
+            )
+            if not results:
+                continue
+            results.sort(key=lambda x: x["score"])
+            top3    = [r["score"] for r in results[:3]]
+            avg     = sum(top3) / len(top3)
+            logger.info(f"   📄 {filename} | avg_top3={avg:.4f}")
+            # เก็บ score ที่ดีที่สุด (ต่ำสุด) ของแต่ละไฟล์
+            if filename not in score_map or avg < score_map[filename]:
+                score_map[filename] = avg
+
+    # ค้น all collection เสมอ
+    _score_files(["all"])
+
+    # ค้น department collection ถ้ามี
+    if dept_clean:
+        _score_files([dept_clean])
+
+    if not score_map:
         return _ok(
             "ขออภัยค่ะ ไม่พบเอกสารในระบบ" if lang == "th" else
             "I apologize, but no documents were found in the system.",
@@ -57,66 +85,40 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         )
 
     # ────────────────────────────────────────────────
-    # Phase 1: หา best chunks ต่อไฟล์ — rerank ด้วย avg top-3 score
+    # Phase 2: Rerank รวม — เอา top 3 ไฟล์จากทุก collection
     # ────────────────────────────────────────────────
-    best_per_file = []
-    for filename in filenames:
-        file_results = chroma_service.query_by_filename(
-            question=question,
-            company=company,
-            dept_list=dept_list,
-            filename=filename,
-            top_k=5,
-        )
-        logger.info(f"📄 {filename} → {len(file_results)} chunks")
-        if not file_results:
-            continue
-
-        file_results.sort(key=lambda x: x["score"])
-
-        top3_scores = [r["score"] for r in file_results[:3]]
-        avg_score   = sum(top3_scores) / len(top3_scores)
-
-        logger.info(f"   ↳ best={file_results[0]['score']:.4f} | avg_top3={avg_score:.4f}")
-
-        best_per_file.append({
-            "filename":  filename,
-            "avg_score": avg_score,
-        })
-
-    if not best_per_file:
-        return _ok(
-            "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเกี่ยวกับเรื่องนี้ในเอกสารระเบียบของบริษัท" if lang == "th" else
-            "I apologize, but I couldn't find relevant information in the policy documents.",
-            topic=topic,
-        )
-
-    # ────────────────────────────────────────────────
-    # Phase 2: Rerank เอา top 3 ไฟล์
-    # ────────────────────────────────────────────────
-    best_per_file.sort(key=lambda x: x["avg_score"])
-    top_files = [f["filename"] for f in best_per_file[:3]]
+    ranked    = sorted(score_map.items(), key=lambda x: x[1])
+    top_files = [f for f, _ in ranked[:3]]
     logger.info(f"🏆 Top 3 Files (reranked): {top_files}")
 
     # ────────────────────────────────────────────────
-    # Phase 3: Deep fetch 5 chunks ต่อไฟล์จาก top 3
+    # Phase 3: Deep fetch — ค้นทั้ง all + dept แล้ว dedup
     # ────────────────────────────────────────────────
     final_results = []
-    for filename in top_files:
-        deep_results = chroma_service.query_by_filename(
-            question=question,
-            company=company,
-            dept_list=dept_list,
-            filename=filename,
-            top_k=5,
-        )
-        logger.info(f"📥 Deep fetch {filename} → {len(deep_results)} chunks")
-        final_results.extend(deep_results)
+    seen_ids      = set()
+
+    def _deep_fetch(dept_list: list[str]):
+        for filename in top_files:
+            results = chroma_service.query_by_filename(
+                question=question,
+                company=company,
+                dept_list=dept_list,
+                filename=filename,
+                top_k=5,
+            )
+            for r in results:
+                if r["id"] not in seen_ids:
+                    seen_ids.add(r["id"])
+                    final_results.append(r)
+
+    _deep_fetch(["all"])
+    if dept_clean:
+        _deep_fetch([dept_clean])
 
     if not final_results:
         return _ok(
-            "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเพิ่มเติมที่เกี่ยวข้อง" if lang == "th" else
-            "I apologize, but no additional relevant information was found.",
+            "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเกี่ยวกับเรื่องนี้ในเอกสารระเบียบของบริษัท" if lang == "th" else
+            "I apologize, but I couldn't find relevant information in the policy documents.",
             topic=topic,
         )
 
@@ -179,7 +181,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         "sources":      safe_sources,
         "context_used": True,
         "topic":        topic,
-        "top_files":    top_files,  # ← ส่ง top 3 filenames ออกมา
+        "top_files":    top_files,
     }
 
 
