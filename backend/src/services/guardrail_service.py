@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Dict
 from sentence_transformers import SentenceTransformer, util
-from utils.embedding_model import get_embedding_model
+from src.utils.embedding_model import get_embedding_model
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

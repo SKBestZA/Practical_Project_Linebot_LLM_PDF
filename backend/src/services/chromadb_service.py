@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-from src.utils.get_embedding_model import get_chroma_embedding_fn
+from src.utils.embedding_model import get_chroma_embedding_fn
 load_dotenv(dotenv_path=Path("/config/.env"))
 
 logger = logging.getLogger(__name__)
