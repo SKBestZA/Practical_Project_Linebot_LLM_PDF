@@ -25,7 +25,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         )
 
     # ════════════════════════════════════════════════
-    # ด่าน 1 — Input Guardrail (รับ topic กลับมาเลย)
+    # ด่าน 1 — Input Guardrail
     # ════════════════════════════════════════════════
     input_check = guardrail.check_comprehensive(question)
     topic       = input_check.get("topic", "ทั่วไป")
@@ -39,11 +39,12 @@ async def process_chat_workflow(question: str, company: str, department: str = N
     # ════════════════════════════════════════════════
     chroma_service = get_chroma_service()
 
-    dept_list = (
-        [department.strip().lower()]
-        if department and department.strip().lower() != "all"
-        else ["all"]
-    )
+    # ค้นทั้ง department จริง + all เสมอ
+    dept_list = ["all"]
+    if department and department.strip().lower() != "all":
+        dept_list.append(department.strip().lower())
+
+    logger.info(f"🔍 Searching [{company}] | dept_list={dept_list}")
 
     filenames = chroma_service.get_unique_filenames(company=company, dept_list=dept_list)
     logger.info(f"📂 Filenames found: {filenames}")
@@ -55,9 +56,9 @@ async def process_chat_workflow(question: str, company: str, department: str = N
             topic=topic,
         )
 
-    logger.info(f"🔍 Searching [{company}] | {len(filenames)} files | dept={dept_list}")
-
-    # Phase 1: หา best chunk ต่อไฟล์
+    # ────────────────────────────────────────────────
+    # Phase 1: หา best chunks ต่อไฟล์ — rerank ด้วย avg top-3 score
+    # ────────────────────────────────────────────────
     best_per_file = []
     for filename in filenames:
         file_results = chroma_service.query_by_filename(
@@ -70,12 +71,17 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         logger.info(f"📄 {filename} → {len(file_results)} chunks")
         if not file_results:
             continue
+
         file_results.sort(key=lambda x: x["score"])
-        best_chunk = file_results[0]
-        logger.info(f"   ↳ best score: {best_chunk['score']:.4f}")
+
+        top3_scores = [r["score"] for r in file_results[:3]]
+        avg_score   = sum(top3_scores) / len(top3_scores)
+
+        logger.info(f"   ↳ best={file_results[0]['score']:.4f} | avg_top3={avg_score:.4f}")
+
         best_per_file.append({
-            "filename":   filename,
-            "best_score": best_chunk["score"],
+            "filename":  filename,
+            "avg_score": avg_score,
         })
 
     if not best_per_file:
@@ -85,12 +91,16 @@ async def process_chat_workflow(question: str, company: str, department: str = N
             topic=topic,
         )
 
-    # Phase 2: Top 3 ไฟล์
-    best_per_file.sort(key=lambda x: x["best_score"])
+    # ────────────────────────────────────────────────
+    # Phase 2: Rerank เอา top 3 ไฟล์
+    # ────────────────────────────────────────────────
+    best_per_file.sort(key=lambda x: x["avg_score"])
     top_files = [f["filename"] for f in best_per_file[:3]]
-    logger.info(f"🏆 Top 3 Files: {top_files}")
+    logger.info(f"🏆 Top 3 Files (reranked): {top_files}")
 
-    # Phase 3: ดึง 5 chunks ต่อไฟล์
+    # ────────────────────────────────────────────────
+    # Phase 3: Deep fetch 5 chunks ต่อไฟล์จาก top 3
+    # ────────────────────────────────────────────────
     final_results = []
     for filename in top_files:
         deep_results = chroma_service.query_by_filename(
@@ -126,7 +136,7 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 
     context_text = "\n\n---\n\n".join(context_parts)
 
-    llm       = get_llm_service()
+    llm        = get_llm_service()
     raw_answer = llm.answer_from_policy(question, context_text)
 
     if not raw_answer:
@@ -157,32 +167,19 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         meta = src["metadata"].copy()
         col  = meta.get("from_col") or f"{company}_{meta.get('department', 'general')}"
         page = meta.get("page_number", "-")
-        dept_display  = col.split("_", 1)[-1].upper() if "_" in col else col.upper()
+        dept_display   = col.split("_", 1)[-1].upper() if "_" in col else col.upper()
         meta["source"] = f"เอกสารระเบียบการ ({dept_display}) หน้า {page}"
         safe_sources.append({"content": src["content"], "metadata": meta})
-
-    # Lookup docid จาก Supabase ด้วย original_filename ของ best chunk
-    source_doc_id = None
-    if results:
-        best_filename = results[0]["metadata"].get("original_filename", "").replace(".pdf", "")
-        if best_filename:
-            try:
-                doc_res = supabase().table("document").select("docid").eq("name", best_filename).single().execute()
-                if doc_res.data:
-                    source_doc_id = doc_res.data["docid"]
-                    logger.info(f"📎 DocID resolved: {best_filename} → {source_doc_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ DocID lookup failed: {e}")
 
     logger.info(f"✅ Answer generated | company={company} | lang={lang} | sources={len(safe_sources)}")
 
     return {
-        "status":         "success",
-        "answer":         safe_answer,
-        "sources":        safe_sources,
-        "context_used":   True,
-        "topic":          topic,
-        "source_doc_id":  source_doc_id,
+        "status":       "success",
+        "answer":       safe_answer,
+        "sources":      safe_sources,
+        "context_used": True,
+        "topic":        topic,
+        "top_files":    top_files,  # ← ส่ง top 3 filenames ออกมา
     }
 
 
@@ -191,21 +188,21 @@ async def process_chat_workflow(question: str, company: str, department: str = N
 # ────────────────────────────────────────────────
 def _ok(message: str, context_used: bool = False, topic: str = "ทั่วไป") -> dict:
     return {
-        "status":        "success",
-        "answer":        message,
-        "sources":       [],
-        "context_used":  context_used,
-        "topic":         topic,
-        "source_doc_id": None,
+        "status":       "success",
+        "answer":       message,
+        "sources":      [],
+        "context_used": context_used,
+        "topic":        topic,
+        "top_files":    [],
     }
 
 
 def _blocked(message: str, topic: str = "ทั่วไป") -> dict:
     return {
-        "status":        "blocked",
-        "answer":        message,
-        "sources":       [],
-        "context_used":  False,
-        "topic":         topic,
-        "source_doc_id": None,
+        "status":       "blocked",
+        "answer":       message,
+        "sources":      [],
+        "context_used": False,
+        "topic":        topic,
+        "top_files":    [],
     }

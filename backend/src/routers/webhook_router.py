@@ -10,7 +10,7 @@ import os
 import asyncio
 import logging
 from urllib.parse import quote
-from src.routers.pdf_router  import router as pdf_router
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["LINE Webhook"])
@@ -23,8 +23,8 @@ BASE_URL = os.getenv("BASE_URL", "https://yourserver.com")
 #  Signature Verify
 # ============================================================
 def _verify_signature(body: bytes, signature: str) -> bool:
-    secret  = os.getenv("LINE_CHANNEL_SECRET", "")
-    hash_   = hmac.new(secret.encode(), body, hashlib.sha256).digest()
+    secret   = os.getenv("LINE_CHANNEL_SECRET", "")
+    hash_    = hmac.new(secret.encode(), body, hashlib.sha256).digest()
     expected = base64.b64encode(hash_).decode()
     return hmac.compare_digest(expected, signature)
 
@@ -126,7 +126,6 @@ def _flex_login(line_user_id: str) -> dict:
 
 
 def _build_download_url(company_code: str, department: str, filename: str) -> str:
-    """สร้าง URL สำหรับ public download (ไม่ต้อง auth)"""
     return (
         f"{BASE_URL}/documents/public-download"
         f"?company_code={quote(company_code)}"
@@ -136,10 +135,6 @@ def _build_download_url(company_code: str, department: str, filename: str) -> st
 
 
 def _flex_answer(answer: str, sources: list[dict]) -> dict:
-    """
-    Flex Message แสดงคำตอบ + ปุ่มดาวน์โหลดเอกสารอ้างอิง
-    sources = [{"filename": "SLA1.pdf", "url": "https://..."}]
-    """
     # deduplicate by filename
     seen, unique_sources = set(), []
     for src in sources:
@@ -147,7 +142,6 @@ def _flex_answer(answer: str, sources: list[dict]) -> dict:
             seen.add(src["filename"])
             unique_sources.append(src)
 
-    # body: คำตอบ
     body_contents = [
         {
             "type":  "text",
@@ -158,14 +152,13 @@ def _flex_answer(answer: str, sources: list[dict]) -> dict:
         }
     ]
 
-    # footer: ปุ่มดาวน์โหลด (max 3 ปุ่ม, LINE จำกัด label 40 chars)
     footer_contents = []
     if unique_sources:
         footer_contents.append({
-            "type":  "text",
-            "text":  "📎 เอกสารอ้างอิง",
-            "size":  "xs",
-            "color": "#888888",
+            "type":   "text",
+            "text":   "📎 เอกสารอ้างอิง",
+            "size":   "xs",
+            "color":  "#888888",
             "margin": "sm",
         })
         for src in unique_sources[:3]:
@@ -210,31 +203,46 @@ def _flex_answer(answer: str, sources: list[dict]) -> dict:
 
 
 # ============================================================
-#  Query Log
+#  Query Log — บันทึก querylog + querydetail ทุกไฟล์
 # ============================================================
 async def _save_query_log(
-    emp_no:   int,
-    topic:    str,
-    log_type: str = "query",
-    doc_id:   str = None,
+    emp_no:    int,
+    topic:     str,
+    log_type:  str = "query",
+    top_files: list[str] = None,
 ):
     try:
-        db  = supabase()
+        db = supabase()
+
+        # insert querylog ก่อน — ได้ query_id กลับมา
         log = db.table("querylog").insert({
             "empno": emp_no,
             "topic": topic,
             "type":  log_type,
         }).execute()
 
-        if doc_id and log.data:
-            query_id = log.data[0]["queryid"]
-            db.table("querydetail").insert({
-                "queryid": query_id,
-                "seq":     1,
-                "docid":   doc_id,
-            }).execute()
+        if not log.data:
+            return
 
-        logger.info(f"📝 Log saved | empno={emp_no} | topic={topic} | type={log_type} | docid={doc_id}")
+        query_id = log.data[0]["queryid"]
+
+        # insert querydetail ทุกไฟล์ใน top_files
+        if top_files:
+            for seq, filename in enumerate(top_files, start=1):
+                name = filename.replace(".pdf", "")
+                try:
+                    doc_res = db.table("document").select("docid").eq("name", name).single().execute()
+                    if doc_res.data:
+                        db.table("querydetail").insert({
+                            "queryid": query_id,
+                            "seq":     seq,
+                            "docid":   doc_res.data["docid"],
+                        }).execute()
+                        logger.info(f"📎 querydetail | seq={seq} | {name} → {doc_res.data['docid']}")
+                except Exception as e:
+                    logger.warning(f"⚠️ DocID lookup failed [{name}]: {e}")
+
+        logger.info(f"📝 Log saved | empno={emp_no} | topic={topic} | type={log_type} | files={top_files}")
 
     except Exception as e:
         logger.error(f"❌ save_query_log error: {e}", exc_info=True)
@@ -244,7 +252,6 @@ async def _save_query_log(
 #  Build Sources จาก RAG result
 # ============================================================
 def _extract_sources(result: dict, company_code: str, department: str) -> list[dict]:
-    """ดึง unique sources จาก RAG result แล้วสร้าง download URL"""
     sources = result.get("sources", [])
     seen, unique = set(), []
 
@@ -349,22 +356,21 @@ async def _handle_text(line_user_id: str, text: str):
         stop_typing.set()
         await typing_task
 
+        top_files = result.get("top_files", [])
+
         await _save_query_log(
             emp_no=user.emp_no,
             topic=result.get("topic", "ทั่วไป"),
             log_type="blocked" if result["status"] == "blocked" else "query",
-            doc_id=result.get("source_doc_id"),
+            top_files=top_files if result["status"] != "blocked" else [],
         )
 
-        # สร้าง sources พร้อม download URL
         sources = _extract_sources(result, company_code, dept_code)
 
         if sources:
-            # มี source → ส่ง Flex Message พร้อมปุ่มดาวน์โหลด
             answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
             await _push(line_user_id, [_flex_answer(answer, sources)])
         else:
-            # ไม่มี source → ส่ง text ธรรมดา (blocked / out of scope)
             answer = result.get("answer") or result.get("message", "ไม่พบข้อมูลที่เกี่ยวข้อง")
             await _push(line_user_id, [_text(answer)])
 
