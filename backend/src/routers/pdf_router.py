@@ -279,10 +279,7 @@ async def update_document(
         logger.error(f"❌ Update error [{old_filename}]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-#employee
-# ──────────────────────────────────────────────
-# GET /documents/public-download  ← ไม่ต้อง auth
-# ──────────────────────────────────────────────
+#employee downloadfile
 @router.get("/public-download")
 def public_download_document(
     company_code: str = Query(...),
@@ -292,7 +289,10 @@ def public_download_document(
     company_name = _get_company_name(company_code)
     dept_name    = _get_department_name(department)
 
+    # ลองหาจาก department จริงก่อน ถ้าไม่เจอลอง all
     file_path = get_file_path(company_name, dept_name, filename)
+    if not file_path:
+        file_path = get_file_path(company_name, "all", filename)
     if not file_path:
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์ '{filename}'")
 
