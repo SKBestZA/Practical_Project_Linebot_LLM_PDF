@@ -9,21 +9,29 @@ import base64
 import os
 import asyncio
 import logging
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["LINE Webhook"])
 
 LINE_API = "https://api.line.me/v2/bot/message"
+BASE_URL = os.getenv("BASE_URL", "https://yourserver.com")
 
 
+# ============================================================
+#  Signature Verify
+# ============================================================
 def _verify_signature(body: bytes, signature: str) -> bool:
-    secret   = os.getenv("LINE_CHANNEL_SECRET", "")
-    hash_    = hmac.new(secret.encode(), body, hashlib.sha256).digest()
+    secret  = os.getenv("LINE_CHANNEL_SECRET", "")
+    hash_   = hmac.new(secret.encode(), body, hashlib.sha256).digest()
     expected = base64.b64encode(hash_).decode()
     return hmac.compare_digest(expected, signature)
 
 
+# ============================================================
+#  LINE API Helpers
+# ============================================================
 async def _reply(reply_token: str, messages: list):
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
     async with httpx.AsyncClient() as client:
@@ -44,47 +52,9 @@ async def _push(line_user_id: str, messages: list):
         )
 
 
-def _flex_login(line_user_id: str) -> dict:
-    liff_url = os.getenv("LIFF_URL", "https://your-liff-url.com/login")
-    return {
-        "type":     "flex",
-        "altText":  "กรุณาเข้าสู่ระบบก่อนใช้งาน",
-        "contents": {
-            "type": "bubble",
-            "body": {
-                "type":     "box",
-                "layout":   "vertical",
-                "spacing":  "md",
-                "contents": [
-                    {"type": "text", "text": "🔐 เข้าสู่ระบบ", "weight": "bold", "size": "xl"},
-                    {"type": "text", "text": "กรุณาเข้าสู่ระบบเพื่อผูกบัญชีและใช้งาน PoliChatbot",
-                     "wrap": True, "color": "#666666", "size": "sm"},
-                ],
-            },
-            "footer": {
-                "type":   "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type":   "button",
-                        "style":  "primary",
-                        "color":  "#00C851",
-                        "action": {
-                            "type":  "uri",
-                            "label": "เข้าสู่ระบบ",
-                            "uri":   f"{liff_url}?lineUserId={line_user_id}",
-                        },
-                    }
-                ],
-            },
-        },
-    }
-
-
-def _text(text: str) -> dict:
-    return {"type": "text", "text": text}
-
-
+# ============================================================
+#  Typing Indicator
+# ============================================================
 async def _typing_loop(line_user_id: str, stop_event: asyncio.Event):
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
     async with httpx.AsyncClient() as client:
@@ -106,6 +76,142 @@ async def _typing_loop(line_user_id: str, stop_event: asyncio.Event):
                 pass
 
 
+# ============================================================
+#  Message Builders
+# ============================================================
+def _text(text: str) -> dict:
+    return {"type": "text", "text": text}
+
+
+def _flex_login(line_user_id: str) -> dict:
+    liff_url = os.getenv("LIFF_URL", "https://your-liff-url.com/login")
+    return {
+        "type":     "flex",
+        "altText":  "กรุณาเข้าสู่ระบบก่อนใช้งาน",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type":    "box",
+                "layout":  "vertical",
+                "spacing": "md",
+                "contents": [
+                    {"type": "text", "text": "🔐 เข้าสู่ระบบ", "weight": "bold", "size": "xl"},
+                    {
+                        "type":  "text",
+                        "text":  "กรุณาเข้าสู่ระบบเพื่อผูกบัญชีและใช้งาน PoliChatbot",
+                        "wrap":  True,
+                        "color": "#666666",
+                        "size":  "sm",
+                    },
+                ],
+            },
+            "footer": {
+                "type":   "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type":  "button",
+                        "style": "primary",
+                        "color": "#00C851",
+                        "action": {
+                            "type":  "uri",
+                            "label": "เข้าสู่ระบบ",
+                            "uri":   f"{liff_url}?lineUserId={line_user_id}",
+                        },
+                    }
+                ],
+            },
+        },
+    }
+
+
+def _build_download_url(company_code: str, department: str, filename: str) -> str:
+    """สร้าง URL สำหรับ public download (ไม่ต้อง auth)"""
+    return (
+        f"{BASE_URL}/documents/public-download"
+        f"?company_code={quote(company_code)}"
+        f"&department={quote(department)}"
+        f"&filename={quote(filename)}"
+    )
+
+
+def _flex_answer(answer: str, sources: list[dict]) -> dict:
+    """
+    Flex Message แสดงคำตอบ + ปุ่มดาวน์โหลดเอกสารอ้างอิง
+    sources = [{"filename": "SLA1.pdf", "url": "https://..."}]
+    """
+    # deduplicate by filename
+    seen, unique_sources = set(), []
+    for src in sources:
+        if src["filename"] not in seen:
+            seen.add(src["filename"])
+            unique_sources.append(src)
+
+    # body: คำตอบ
+    body_contents = [
+        {
+            "type":  "text",
+            "text":  answer,
+            "wrap":  True,
+            "size":  "sm",
+            "color": "#333333",
+        }
+    ]
+
+    # footer: ปุ่มดาวน์โหลด (max 3 ปุ่ม, LINE จำกัด label 40 chars)
+    footer_contents = []
+    if unique_sources:
+        footer_contents.append({
+            "type":  "text",
+            "text":  "📎 เอกสารอ้างอิง",
+            "size":  "xs",
+            "color": "#888888",
+            "margin": "sm",
+        })
+        for src in unique_sources[:3]:
+            label = src["filename"]
+            if len(label) > 40:
+                label = label[:37] + "..."
+            footer_contents.append({
+                "type":   "button",
+                "height": "sm",
+                "margin": "sm",
+                "style":  "secondary",
+                "action": {
+                    "type":  "uri",
+                    "label": label,
+                    "uri":   src["url"],
+                },
+            })
+
+    flex = {
+        "type":    "flex",
+        "altText": answer[:100],
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "body": {
+                "type":     "box",
+                "layout":   "vertical",
+                "contents": body_contents,
+            },
+        },
+    }
+
+    if footer_contents:
+        flex["contents"]["footer"] = {
+            "type":     "box",
+            "layout":   "vertical",
+            "spacing":  "sm",
+            "contents": footer_contents,
+        }
+
+    return flex
+
+
+# ============================================================
+#  Query Log
+# ============================================================
 async def _save_query_log(
     emp_no:   int,
     topic:    str,
@@ -134,22 +240,29 @@ async def _save_query_log(
         logger.error(f"❌ save_query_log error: {e}", exc_info=True)
 
 
-def _build_answer(result: dict) -> str:
-    answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
+# ============================================================
+#  Build Sources จาก RAG result
+# ============================================================
+def _extract_sources(result: dict, company_code: str, department: str) -> list[dict]:
+    """ดึง unique sources จาก RAG result แล้วสร้าง download URL"""
+    sources = result.get("sources", [])
+    seen, unique = set(), []
 
-    sources   = result.get("sources", [])
-    filenames = list(dict.fromkeys(
-        s["metadata"].get("original_filename", "")
-        for s in sources
-        if s.get("metadata", {}).get("original_filename")
-    ))
+    for s in sources:
+        filename = s.get("metadata", {}).get("original_filename", "")
+        if filename and filename not in seen:
+            seen.add(filename)
+            unique.append({
+                "filename": filename,
+                "url": _build_download_url(company_code, department, filename),
+            })
 
-    if filenames:
-        answer += "\n\n📄 อ้างอิงจาก: " + ", ".join(filenames)
-
-    return answer
+    return unique
 
 
+# ============================================================
+#  Webhook Entry Point
+# ============================================================
 @router.post("/line")
 async def line_webhook(
     request:          Request,
@@ -217,12 +330,15 @@ async def _handle_text(line_user_id: str, text: str):
 
     try:
         emp_result = supabase().table("employee").select(
-            "setdepartment(sdpname, setcompany(scpname))"
+            "setdepartment(sdpname, sdpcode, setcompany(scpname, scpcode))"
         ).eq("empno", user.emp_no).execute()
 
-        dept       = emp_result.data[0].get("setdepartment", {}) if emp_result.data else {}
-        company    = dept.get("setcompany", {}).get("scpname", "default")
-        department = dept.get("sdpname", "all")
+        dept         = emp_result.data[0].get("setdepartment", {}) if emp_result.data else {}
+        company_obj  = dept.get("setcompany", {})
+        company      = company_obj.get("scpname", "default")
+        company_code = company_obj.get("scpcode", "default")
+        department   = dept.get("sdpname", "all")
+        dept_code    = dept.get("sdpcode", "all")
 
         result = await process_chat_workflow(
             question=text,
@@ -240,7 +356,17 @@ async def _handle_text(line_user_id: str, text: str):
             doc_id=result.get("source_doc_id"),
         )
 
-        await _push(line_user_id, [_text(_build_answer(result))])
+        # สร้าง sources พร้อม download URL
+        sources = _extract_sources(result, company_code, dept_code)
+
+        if sources:
+            # มี source → ส่ง Flex Message พร้อมปุ่มดาวน์โหลด
+            answer = result.get("answer", "ไม่พบข้อมูลที่เกี่ยวข้อง")
+            await _push(line_user_id, [_flex_answer(answer, sources)])
+        else:
+            # ไม่มี source → ส่ง text ธรรมดา (blocked / out of scope)
+            answer = result.get("answer") or result.get("message", "ไม่พบข้อมูลที่เกี่ยวข้อง")
+            await _push(line_user_id, [_text(answer)])
 
     except Exception as e:
         stop_typing.set()

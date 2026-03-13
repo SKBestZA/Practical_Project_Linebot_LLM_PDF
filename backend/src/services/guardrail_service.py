@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Dict
 from sentence_transformers import SentenceTransformer, util
-
+from utils.embedding_model import get_embedding_model
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class GuardrailService:
         self._client = ollama.Client(host=self._host)
 
         logger.info("⚡ Loading Embedding Model for Scope Check (CPU Mode)...")
-        self.embed_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2', device='cpu')
+        self.embed_model = get_embedding_model()
 
         self.allowed_topics = [
             "rules regulations policy guidelines compliance standards procedures",
@@ -216,13 +216,13 @@ Is this response safe? Answer ONLY 'safe' or 'unsafe'.<|eot_id|><|start_header_i
 
     def _get_rejection_message(self, user_input: str) -> str:
         lang = self._detect_language(user_input)
-        return ("ขอโทษครับ ผมตอบได้เฉพาะเรื่องระเบียบการและสวัสดิการของบริษัทเท่านั้นครับ"
+        return ("ขอโทษค่ะ ดิฉันตอบได้เฉพาะเรื่องระเบียบการและสวัสดิการของบริษัทเท่านั้นค่ะ"
                 if lang == 'th' else
                 "I apologize, but I can only answer questions about company policies and benefits.")
 
     def _get_safety_message(self, user_input: str) -> str:
         lang = self._detect_language(user_input)
-        return ("ขอโทษครับ คำถามของคุณมีเนื้อหาที่ไม่เหมาะสมและขัดต่อกฎระเบียบด้านความปลอดภัย"
+        return ("ขอโทษด้วยนะคะ คำถามของคุณมีเนื้อหาที่ไม่เหมาะสมและขัดต่อกฎระเบียบด้านความปลอดภัย"
                 if lang == 'th' else
                 "I apologize, but your question contains inappropriate content and violates safety guidelines.")
 

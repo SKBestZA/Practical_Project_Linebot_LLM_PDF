@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-
+from src.utils.get_embedding_model import get_chroma_embedding_fn
 load_dotenv(dotenv_path=Path("/config/.env"))
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,7 @@ class ChromaDBService:
         self.host = os.getenv("CHROMA_HOST")
         self.port = int(os.getenv("CHROMA_PORT", 8000))
 
-        self.embedding_fn = SentenceTransformerEmbeddingFunction(
-            model_name="paraphrase-multilingual-MiniLM-L12-v2"
-        )
+        self.embedding_fn = get_chroma_embedding_fn()
 
         if self.host:
             self.client = chromadb.HttpClient(host=self.host, port=self.port)

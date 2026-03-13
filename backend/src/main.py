@@ -8,6 +8,7 @@ from src.routers.auth_router import router as auth_router
 from src.routers.pdf_router  import router as pdf_router
 from src.routers.admin_router import router as admin_router
 from src.routers.webhook_router import router as webhook_router
+from src.utils.embedding_model import get_embedding_model,get_chroma_embedding_fn
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +29,12 @@ async def lifespan(app: FastAPI):
     # use for develop project
     # run_sql_file(os.path.join(sql_dir, "ddl.sql"))
     # run_sql_file(os.path.join(sql_dir, "dml.sql"))
+    
+    # ── โหลด model ก่อนรับ request ──
+    logger.info("⚡ Loading embedding models...")
+    get_embedding_model()
+    get_chroma_embedding_fn()
+    logger.info("✅ Models ready!")
 
     yield
     logger.info("🛑 Shutting down...")
@@ -40,6 +47,7 @@ app = FastAPI(
     title="RAG LINE Bot API",
     version="1.0.0",
     lifespan=lifespan,
+    openapi_version="3.0.3",
 )
 
 
