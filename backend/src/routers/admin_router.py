@@ -31,9 +31,9 @@ def verify_admin_token(authorization: str = Header(..., description="Bearer <tok
 # ============================================================
 class AddEmployeeRequest(BaseModel):
     empNo:     int
-    title:     str   # ✅ required — DB NOT NULL
-    fname:     str   # ✅ required — DB NOT NULL
-    lname:     str   # ✅ required — DB NOT NULL
+    title:     str
+    fname:     str
+    lname:     str
     birthday:  date
     sex:       str
     sdpCode:   str
@@ -68,7 +68,7 @@ def get_dashboard(
     scpCode: str = Query(...),
     admin:   dict = Depends(verify_admin_token),
 ):
-    return {"status": "success", "data": admin_service.get_dashboard()}
+    return {"status": "success", "data": admin_service.get_dashboard(scpCode)}  # ← ส่ง scpCode
 
 
 # ============================================================
@@ -80,7 +80,7 @@ def get_top_queries(
     limit:   int = Query(10),
     admin:   dict = Depends(verify_admin_token),
 ):
-    return {"status": "success", "data": admin_service.get_top_queries(limit)}
+    return {"status": "success", "data": admin_service.get_top_queries(scpCode, limit)}  # ← ส่ง scpCode
 
 
 # ============================================================
@@ -92,7 +92,7 @@ def get_documents(
     admin:   dict = Depends(verify_admin_token),
 ):
     try:
-        result = supabase().table("document").select("*").execute()
+        result = supabase().table("document").select("*").eq("scpcode", scpCode).execute()
         docs = result.data or []
         return {"status": "success", "data": {"totalPolicies": len(docs), "documents": docs}}
     except Exception as e:

@@ -97,21 +97,21 @@ CREATE TABLE Document (
     LastDate  DATE,
     AdminCode CHAR(6)      NOT NULL  REFERENCES Admin(Code),
     ScpCode   CHAR(6)      NOT NULL  REFERENCES SetCompany(ScpCode),
-    SdpCode   CHAR(6)                REFERENCES SetDepartment(SdpCode)  -- NULL = ทุกแผนก
+    SdpCode   CHAR(6)                REFERENCES SetDepartment(SdpCode)
 );
 
 CREATE TABLE QueryLog (
     QueryID   BIGSERIAL    PRIMARY KEY,
     EmpNo     INT          NOT NULL  REFERENCES Employee(EmpNo),
     Topic     VARCHAR(255),
-    Type      VARCHAR(10)  NOT NULL  DEFAULT 'query'  CHECK (Type IN ('query', 'blocked')),  -- ✅ เพิ่ม
+    Type      VARCHAR(10)  NOT NULL  DEFAULT 'query'  CHECK (Type IN ('query', 'blocked')),
     TimeStamp TIMESTAMPTZ  NOT NULL  DEFAULT NOW()
 );
 
 CREATE TABLE QueryDetail (
     QueryID  BIGINT    NOT NULL  REFERENCES QueryLog(QueryID),
     Seq      INT       NOT NULL,
-    DocID    CHAR(6)   REFERENCES Document(DocID),
+    DocID    CHAR(6)   REFERENCES Document(DocID) ON DELETE CASCADE,
     PRIMARY KEY (QueryID, Seq)
 );
 
@@ -160,13 +160,11 @@ FOR EACH ROW EXECUTE FUNCTION trgFillDeptCompanyName();
 -- ============================================================
 -- 6. API FUNCTIONS
 -- ============================================================
-
--- ✅ เปลี่ยน res_Name → res_Title ให้ตรงกับ column จริงใน Employee
 CREATE OR REPLACE FUNCTION fnCheckLineUser(pLineUserID VARCHAR(33))
 RETURNS TABLE (
     res_IsBound  BOOLEAN,
     res_EmpNo    INT,
-    res_Title    VARCHAR(20),  -- ✅ แก้จาก res_Name
+    res_Title    VARCHAR(20),
     res_Fname    VARCHAR(20),
     res_Lname    VARCHAR(20)
 )
@@ -189,7 +187,6 @@ BEGIN
 
     RETURN QUERY SELECT TRUE, vEmp.EmpNo, vEmp.Title, vEmp.Fname, vEmp.Lname;
 END; $$;
-
 
 CREATE OR REPLACE FUNCTION fnEmployeeLogin(
     pEmpNo      INT,

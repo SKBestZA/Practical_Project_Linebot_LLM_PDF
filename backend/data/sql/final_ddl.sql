@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS QueryLog (
 CREATE TABLE IF NOT EXISTS QueryDetail (
     QueryID  BIGINT    NOT NULL  REFERENCES QueryLog(QueryID),
     Seq      INT       NOT NULL,
-    DocID    CHAR(6)   REFERENCES Document(DocID),
+    DocID    CHAR(6)   REFERENCES Document(DocID) ON DELETE CASCADE,
     PRIMARY KEY (QueryID, Seq)
 );
 
