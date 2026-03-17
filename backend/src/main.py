@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     sql_dir = os.path.join(base_dir, "data", "sql")
     # use for run deploy project
     run_sql_file(os.path.join(sql_dir,"final_ddl.sql"))
+    run_sql_file(os.path.join(sql_dir,"final_dml.sql"))
     # use for develop project
     # run_sql_file(os.path.join(sql_dir, "ddl.sql"))
     # run_sql_file(os.path.join(sql_dir, "dml.sql"))
@@ -47,7 +48,7 @@ app = FastAPI(
     title="RAG LINE Bot API",
     version="1.0.0",
     lifespan=lifespan,
-    openapi_version="3.0.3",
+    root_path="/api", 
 )
 
 

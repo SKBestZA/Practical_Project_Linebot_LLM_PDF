@@ -69,18 +69,6 @@ class GuardrailService:
             return False
         return any(w.lower() in text_clean for w in greetings)
 
-    # --- Extract Topic ---
-    def extract_topic(self, question: str) -> str:
-        try:
-            query_vec = self.embed_model.encode(question, convert_to_tensor=True)
-            scores    = util.cos_sim(query_vec, self.topic_vectors)[0]
-            best_idx  = int(scores.argmax())
-            topic     = self.topic_categories[best_idx]
-            logger.info(f"📌 Topic: '{question[:40]}' → '{topic}' (score={float(scores[best_idx]):.4f})")
-            return topic
-        except Exception as e:
-            logger.error(f"❌ extract_topic error: {e}", exc_info=True)
-            return question[:50]
 
     # --- Layer 2: Scope Check ---
     def check_policy_scope(self, user_input: str, threshold: float = 0.25) -> Dict:
