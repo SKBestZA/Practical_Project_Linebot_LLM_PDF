@@ -114,9 +114,6 @@ SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxx
 
 # Server — ใส่ ngrok URL ที่ได้หลัง docker compose up
 BASE_URL=https://xxxx-xx-xx-xx-xx.ngrok-free.app
-
-# JWT
-JWT_SECRET=your-random-secret-string-here
 ```
 
 > **หมายเหตุ:** `OLLAMA_HOST`, `CHROMA_HOST`, `CHROMA_PORT` จะถูกตั้งค่าอัตโนมัติโดย Docker Compose ไม่ต้องใส่
@@ -256,10 +253,11 @@ LINE Flex Message + Source Documents
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_KEY` | Supabase anon/service key |
 | `BASE_URL` | URL ของ server ที่ expose ออกภายนอก |
-| `JWT_SECRET` | Secret สำหรับ sign JWT token |
 | `OLLAMA_HOST` | ตั้งอัตโนมัติโดย Docker Compose |
 | `CHROMA_HOST` | ตั้งอัตโนมัติโดย Docker Compose |
 | `CHROMA_PORT` | ตั้งอัตโนมัติโดย Docker Compose |
+
+> **หมายเหตุ Authentication:** ระบบใช้ UUID Token ที่ generate จาก `gen_random_uuid()` เก็บใน `Admin.Token` column แทน JWT ทำให้ logout แล้ว token หมดทันที แต่ทุก request จะ query DB เพื่อตรวจสอบ
 
 **Frontend** (`frontend/.env`)
 
