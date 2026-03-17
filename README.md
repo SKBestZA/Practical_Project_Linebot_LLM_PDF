@@ -4,6 +4,8 @@ Mini project LINE Chatbot สำหรับตอบคำถามเกี่
 ใช้กระบวนการ **RAG (Retrieval-Augmented Generation)** โดยปัจจุบันใช้ **Qwen3 32B** ผ่าน Groq API  
 และใช้ **Llama Guard 3 1B** ผ่าน Ollama สำหรับ Guardrail
 
+> เริ่มต้นพัฒนาด้วย LLaMA 3.2 3B แบบ open-source รันบนเครื่อง ปัจจุบันย้ายมาใช้ Qwen3 32B ผ่าน Groq API เพื่อประสิทธิภาพที่ดีขึ้น
+
 ---
 
 ## สถาปัตยกรรมระบบ
@@ -125,8 +127,8 @@ JWT_SECRET=your-random-secret-string-here
 # LIFF ID จาก LINE Developer Console (ตัวเลขเดียวกับ backend)
 VITE_LIFF_ID=1234567890-xxxxxxxx
 
-# URL ของ backend ผ่าน nginx proxy
-VITE_API_URL=https://xxxx-xx-xx-xx-xx.ngrok-free.app/api
+# frontend และ backend อยู่บน domain เดียวกันผ่าน nginx ใส่แค่ path พอ
+VITE_API_URL=/api
 ```
 
 ---
@@ -264,4 +266,4 @@ LINE Flex Message + Source Documents
 | Variable | คำอธิบาย |
 |---|---|
 | `VITE_LIFF_ID` | LIFF App ID (ตัวเดียวกับ backend) |
-| `VITE_API_URL` | URL ของ backend เช่น `https://xxxx.ngrok-free.app/api` |
+| `VITE_API_URL` | Path ของ backend เช่น `/api` (same domain ผ่าน nginx) |
