@@ -16,16 +16,22 @@ LINE App
   ▼
 LINE Webhook (FastAPI)
   │
-  ├─► Guardrail (Llama Guard + Embedding Scope Check)
+  ├─► Guardrail Layer
+  │     ├─ Keyword Blacklist
+  │     ├─ Embedding Scope Check
+  │     └─ Llama Guard Safety Check
   │
   ├─► RAG Pipeline
-  │     ├─ ChromaDB  ← Hybrid Retrieval (all + department)
-  │     └─ Groq API  ← LLM Answer Generation
+  │     ├─ ChromaDB        ← Vector Search
+  │     ├─ Hybrid Retrieval (all + department)
+  │     └─ Groq API        ← LLM Answer Generation
   │
-  └─► Supabase (PostgreSQL) ← Employee / Query Log
-  
+  └─► Supabase (PostgreSQL)
+        ├─ Employee Data
+        └─ Query Logs
+
 Admin Dashboard (React + Vite)
-  └─► จัดการพนักงาน, อัปโหลด PDF, ดู Dashboard
+  └─► จัดการพนักงาน, อัปโหลดเอกสาร PDF, ดูสถิติการใช้งาน
 ```
 
 ---
