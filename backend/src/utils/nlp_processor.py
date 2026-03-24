@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 try:
-    from pythainlp.tokenize import sent_tokenize
+    from pythainlp.tokenize import sent_tokenize,word_tokenize
     HAS_PYTHAINLP = True
 except ImportError:
     HAS_PYTHAINLP = False
@@ -97,3 +97,6 @@ class NLPProcessor:
         text = re.sub(r'\b0[689]\d{1}-?\d{3}-?\d{4}\b', '[PHONE_REDACTED]', text)
         text = re.sub(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[EMAIL_REDACTED]', text)
         return text
+    def tokenize(self,text: str) -> list[str]:
+    # ตัดคำไทย + fallback split สำหรับอังกฤษ
+        return word_tokenize(text, engine="newmm", keep_whitespace=False)

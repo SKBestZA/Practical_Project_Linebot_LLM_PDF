@@ -3,6 +3,8 @@ from src.services.llm_service import get_llm_service
 from src.services.guardrail_service import get_guardrail_service
 from src.utils.nlp_processor import NLPProcessor
 from src.config.db import supabase
+from rank_bm25 import BM25Okapi
+from src.utils.nlp_processor import NLPProcessor
 
 import logging
 
@@ -85,17 +87,25 @@ async def process_chat_workflow(question: str, company: str, department: str = N
         )
 
     # ────────────────────────────────────────────────
-    # Phase 2: Rerank รวม — เอา top 3 ไฟล์จากทุก collection
+    # Phase 2: Rerank — Dynamic top_files
     # ────────────────────────────────────────────────
-    ranked    = sorted(score_map.items(), key=lambda x: x[1])
-    top_files = [f for f, _ in ranked[:3]]
-    logger.info(f"🏆 Top 3 Files (reranked): {top_files}")
+    ranked          = sorted(score_map.items(), key=lambda x: x[1])
+    best_file_score = ranked[0][1]
+    FILE_GAP        = 0.15
+
+    top_files = [ranked[0][0]]
+    for fname, score in ranked[1:3]:
+        if score - best_file_score <= FILE_GAP:
+            top_files.append(fname)
+
+    logger.info(f"🏆 Dynamic Top Files: {top_files} (gap≤{FILE_GAP})")
 
     # ────────────────────────────────────────────────
-    # Phase 3: Deep fetch — ค้นทั้ง all + dept แล้ว dedup
+    # Phase 3: Deep fetch + BM25 + RRF Hybrid Rerank
     # ────────────────────────────────────────────────
-    final_results = []
-    seen_ids      = set()
+    nlp_tok    = NLPProcessor()
+    raw_chunks = []
+    seen_ids   = set()
 
     def _deep_fetch(dept_list: list[str]):
         for filename in top_files:
@@ -109,22 +119,40 @@ async def process_chat_workflow(question: str, company: str, department: str = N
             for r in results:
                 if r["id"] not in seen_ids:
                     seen_ids.add(r["id"])
-                    final_results.append(r)
+                    raw_chunks.append(r)
 
     _deep_fetch(["all"])
     if dept_clean:
         _deep_fetch([dept_clean])
 
-    if not final_results:
+    if not raw_chunks:
         return _ok(
             "ขออภัยค่ะ ดิฉันไม่พบข้อมูลเกี่ยวกับเรื่องนี้ในเอกสารระเบียบของบริษัท" if lang == "th" else
             "I apologize, but I couldn't find relevant information in the policy documents.",
             topic=topic,
         )
 
-    final_results.sort(key=lambda x: x["score"])
-    results = final_results[:15]
-    logger.info(f"📊 Final selected chunks: {len(results)}")
+    # BM25
+    corpus      = [nlp_tok.tokenize(r["content"]) for r in raw_chunks]
+    bm25        = BM25Okapi(corpus)
+    bm25_scores = bm25.get_scores(nlp_tok.tokenize(question))
+    bm25_max    = max(bm25_scores) if max(bm25_scores) > 0 else 1.0
+    bm25_norm   = [s / bm25_max for s in bm25_scores]
+
+    # RRF
+    emb_ranked  = sorted(range(len(raw_chunks)), key=lambda i: raw_chunks[i]["score"])
+    bm25_ranked = sorted(range(len(raw_chunks)), key=lambda i: bm25_norm[i], reverse=True)
+    emb_rank    = {idx: rank for rank, idx in enumerate(emb_ranked)}
+    bm25_rank   = {idx: rank for rank, idx in enumerate(bm25_ranked)}
+
+    K = 60
+    for i, r in enumerate(raw_chunks):
+        r["hybrid_score"] = 1/(K + emb_rank[i]) + 1/(K + bm25_rank[i])
+
+    raw_chunks.sort(key=lambda x: x["hybrid_score"], reverse=True)
+    results = raw_chunks[:15]
+
+    logger.info(f"📊 Final chunks: {len(results)} | best_hybrid={results[0]['hybrid_score']:.4f}")
 
     # ════════════════════════════════════════════════
     # ด่าน 3 — Context Construction & LLM
