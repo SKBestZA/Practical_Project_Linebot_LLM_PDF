@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FileText, Upload, Trash2, Download, Edit2, X, Save } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, Edit2, X, Save, AlertTriangle } from 'lucide-react';
 import { documentsApi, employeesApi } from '../lib/api';
-
 
 interface PolicyFile {
   name: string;
@@ -21,6 +20,7 @@ export function Policies() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PolicyFile | null>(null); // 👈 เพิ่ม
   const [editingFile, setEditingFile] = useState<PolicyFile | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -31,9 +31,7 @@ export function Policies() {
     setLoading(true);
     try {
       const res = await documentsApi.list(COMPANY);
-      const files = (res.files || []).filter(
-        (f) => f.name && f.name.trim() !== ''
-      );
+      const files = (res.files || []).filter((f) => f.name && f.name.trim() !== '');
       setPolicies(files);
     } catch (e: any) {
       setError(e.message);
@@ -90,13 +88,16 @@ export function Policies() {
     }
   };
 
-  const handleDelete = async (policy: PolicyFile) => {
-    if (!confirm(`ลบไฟล์ "${policy.name}" ใช่ไหม?`)) return;
+  // 👇 แทนที่ confirm() ด้วย modal
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await documentsApi.delete(COMPANY, policy.department, policy.name);
+      await documentsApi.delete(COMPANY, deleteTarget.department, deleteTarget.name);
+      setDeleteTarget(null);
       await fetchPolicies();
     } catch (e: any) {
       setError(e.message);
+      setDeleteTarget(null);
     }
   };
 
@@ -123,6 +124,7 @@ export function Policies() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Policy Documents</h1>
@@ -143,6 +145,7 @@ export function Policies() {
         </div>
       )}
 
+      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
@@ -183,6 +186,7 @@ export function Policies() {
         </div>
       </div>
 
+      {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">กำลังโหลด...</div>
@@ -237,8 +241,9 @@ export function Policies() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+                        {/* 👇 เปลี่ยนจาก handleDelete เป็น setDeleteTarget */}
                         <button
-                          onClick={() => handleDelete(policy)}
+                          onClick={() => setDeleteTarget(policy)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -253,6 +258,7 @@ export function Policies() {
         )}
       </div>
 
+      {/* Upload/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
@@ -264,20 +270,13 @@ export function Policies() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {editingFile ? 'Replace PDF File' : 'Select PDF File'}
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="file-upload"
-                  />
+                  <input type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" id="file-upload" />
                   <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
                     <Upload className="w-8 h-8 text-gray-400" />
                     <span className="text-sm font-medium text-gray-900">Click to upload</span>
@@ -294,7 +293,6 @@ export function Policies() {
                   </div>
                 )}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                 <select
@@ -304,15 +302,11 @@ export function Policies() {
                 >
                   <option value="all">All Employees</option>
                   {departments.map((d) => (
-                    <option key={d.sdpcode} value={d.sdpcode}>
-                      {d.sdpname}
-                    </option>
+                    <option key={d.sdpcode} value={d.sdpcode}>{d.sdpname}</option>
                   ))}
                 </select>
               </div>
-
               {error && <p className="text-sm text-red-600">{error}</p>}
-
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleCloseModal}
@@ -327,6 +321,42 @@ export function Policies() {
                 >
                   <Save className="w-4 h-4" />
                   {uploading ? 'Saving...' : editingFile ? 'Update' : 'Upload'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 👇 Delete Confirm Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-7 h-7 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">ยืนยันการลบ</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  คุณต้องการลบไฟล์{' '}
+                  <span className="font-medium text-gray-800">"{deleteTarget.name}"</span>{' '}
+                  ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้
+                </p>
+              </div>
+              <div className="flex gap-3 w-full pt-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  ลบไฟล์
                 </button>
               </div>
             </div>
