@@ -25,6 +25,7 @@ class LLMService:
             "top_p": 0.95,
             "max_completion_tokens": 1024,
             "reasoning_effort": "none",
+            "seed":42,
         }
 
         logger.info(f"✅ LLMService Connected: Groq | Model: {self._model}")
