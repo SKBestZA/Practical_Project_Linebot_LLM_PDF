@@ -62,7 +62,7 @@ async function publicRequest<T>(
 // ─── Auth ────────────────────────────────────────
 export const authApi = {
     adminLogin: (username: string, password: string) =>
-        request<{
+        publicRequest<{
             status: string;
             message: string;
             adminCode: string;
@@ -74,9 +74,6 @@ export const authApi = {
             '/auth/admin/login',
             { method: 'POST', body: JSON.stringify({ username, password }) }
         ),
-
-    adminLogout: () =>
-        request('/auth/admin/logout', { method: 'POST' }),
 
     checkLine: (lineUserId: string) =>
         publicRequest<{

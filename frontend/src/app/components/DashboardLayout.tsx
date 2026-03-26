@@ -21,16 +21,11 @@ export function DashboardLayout() {
   const adminUsername = localStorage.getItem('adminUsername') || 'Admin';
 
   const handleLogout = async () => {
-    try {
-      await authApi.adminLogout();
-    } catch (_) {
-      // silent fail
-    } finally {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminCode');
-      localStorage.removeItem('adminUsername');
-      navigate('/login', { replace: true });
-    }
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminCode');
+    localStorage.removeItem('adminUsername');
+    navigate('/login', { replace: true });
+
   };
 
   const navItems = [
@@ -118,7 +113,7 @@ export function DashboardLayout() {
       {/* Main content — ไม่มี header แล้ว */}
       <div className="lg:pl-64">
         <main className="p-4 sm:p-6 lg:p-8">
-          {/* ✅ hamburger เฉพาะ mobile อยู่บน content */}
+          {/* hamburger เฉพาะ mobile อยู่บน content */}
           <div className="lg:hidden mb-4">
             <button
               onClick={() => setSidebarOpen(true)}
