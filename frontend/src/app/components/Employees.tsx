@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Edit2, X, Save, Calendar } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, X, Save, Calendar, AlertTriangle } from 'lucide-react';
 import { employeesApi } from '../lib/api';
 
 interface Employee {
@@ -45,6 +45,7 @@ export function Employees() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null); // 👈 เพิ่ม State สำหรับลบพนักงาน
   const [editing, setEditing] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -55,7 +56,7 @@ export function Employees() {
     try {
       const res = await employeesApi.list(scpCode);
 
-      // ✅ เรียง active ขึ้นบนก่อน
+      // เรียง active ขึ้นบนก่อน
       const sorted = (res.data.employees || []).sort((a: Employee, b: Employee) => {
         if (a.loginstatus === 'active' && b.loginstatus !== 'active') return -1;
         if (a.loginstatus !== 'active' && b.loginstatus === 'active') return 1;
@@ -135,13 +136,16 @@ export function Employees() {
     }
   };
 
-  const handleDelete = async (empNo: number) => {
-    if (!confirm('ต้องการลบพนักงานคนนี้ใช่ไหม?')) return;
+  // 👇 เปลี่ยนมารับค่าจาก deleteTarget แทน
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await employeesApi.delete(empNo);
+      await employeesApi.delete(deleteTarget.empno);
+      setDeleteTarget(null);
       fetchData();
     } catch (e: any) {
       setError(e.message || 'ลบไม่สำเร็จ');
+      setDeleteTarget(null);
     }
   };
 
@@ -253,8 +257,9 @@ export function Employees() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+                        {/* 👇 เปลี่ยน onClick เพื่อเปิด Modal แทน */}
                         <button
-                          onClick={() => handleDelete(emp.empno)}
+                          onClick={() => setDeleteTarget(emp)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -269,7 +274,7 @@ export function Employees() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Upload/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
@@ -408,6 +413,44 @@ export function Employees() {
                 >
                   <Save className="w-4 h-4" />
                   {saving ? 'กำลังบันทึก...' : editing ? 'Update' : 'Add'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 👇 Delete Confirm Modal ที่เพิ่มเข้ามา */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-7 h-7 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">ยืนยันการลบ</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  คุณต้องการลบพนักงาน <br />
+                  <span className="font-medium text-gray-800">
+                    "{deleteTarget.title} {deleteTarget.fname} {deleteTarget.lname}"
+                  </span> <br />
+                  ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้
+                </p>
+              </div>
+              <div className="flex gap-3 w-full pt-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  ลบพนักงาน
                 </button>
               </div>
             </div>
