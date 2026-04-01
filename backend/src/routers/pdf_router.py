@@ -1,7 +1,7 @@
 # src/routers/pdf_router.py
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Depends, Header
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse,HTMLResponse
 from src.services.rag_upload_pipeline import process_upload_workflow
 from src.services.chromadb_service import get_chroma_service
 from src.services.admin_service import admin_service
