@@ -328,14 +328,14 @@ def public_download_document(
     .icon-wrap {{
       width: 80px;
       height: 80px;
-      background: linear-gradient(135deg, #312e81, #4c1d95);
+      background: linear-gradient(135deg, #991b1b, #ef4444);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 28px;
       font-size: 36px;
-      box-shadow: 0 0 30px rgba(99,102,241,0.3);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
     }}
     h1 {{
       font-size: 20px;
@@ -351,7 +351,7 @@ def public_download_document(
       margin-bottom: 24px;
     }}
     .desc strong {{
-      color: #c7d2fe;
+      color: #fca5a5;
     }}
     .divider {{
       border: none;
@@ -359,28 +359,28 @@ def public_download_document(
       margin: 24px 0;
     }}
     .action-box {{
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid #4338ca;
+      background: rgba(153, 27, 27, 0.1);
+      border: 1px solid #dc2626;
       border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 24px;
     }}
     .action-box p {{
       font-size: 13px;
-      color: #a5b4fc;
+      color: #fca5a5;
       line-height: 1.7;
     }}
     .action-box .line-hint {{
       font-size: 15px;
       font-weight: 600;
-      color: #818cf8;
+      color: #f87171;
       margin-top: 8px;
     }}
     .badge {{
       display: inline-block;
-      background: rgba(99,102,241,0.15);
-      color: #a5b4fc;
-      border: 1px solid #4338ca;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid #991b1b;
       border-radius: 999px;
       padding: 5px 16px;
       font-size: 12px;
@@ -391,7 +391,7 @@ def public_download_document(
 </head>
 <body>
   <div class="card">
-    <div class="icon-wrap">📋</div>
+    <div class="icon-wrap">🚫</div>
     <h1>เอกสาร Policy นี้<br>ไม่พร้อมให้ดาวน์โหลด</h1>
     <p class="desc">
       ไฟล์ <strong>{filename}</strong> อาจถูก<strong>อัปเดต</strong>หรือ<strong>ยกเลิกการใช้งาน</strong><br>
@@ -401,11 +401,11 @@ def public_download_document(
     <div class="action-box">
       <p>หากต้องการข้อมูล Policy ล่าสุด<br>กรุณาสอบถามผ่าน</p>
       <div class="line-hint">💬 LINE Chatbot อีกครั้ง</div>
-      <p style="margin-top:8px; font-size:12px; color:#64748b;">
+      <p style="margin-top:8px; font-size:12px; color:#94a3b8;">
         ระบบจะค้นหาเอกสารเวอร์ชันปัจจุบันให้อัตโนมัติ
       </p>
     </div>
-    <span class="badge">🔒 Document Unavailable</span>
+    <span class="badge">🔒 Access Restricted</span>
   </div>
 </body>
 </html>
