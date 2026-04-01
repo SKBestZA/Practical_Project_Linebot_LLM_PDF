@@ -114,7 +114,7 @@ export function Login() {
         </div>
 
         <p className="text-center text-sm text-gray-600 mt-6">
-          Protected by enterprise-grade security
+          🔒 Secured by Admin Database
         </p>
       </div>
     </div>

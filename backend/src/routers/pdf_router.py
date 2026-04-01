@@ -294,7 +294,123 @@ def public_download_document(
     if not file_path:
         file_path = get_file_path(company_name, "all", filename)
     if not file_path:
-        raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์ '{filename}'")
+        return HTMLResponse(
+            status_code=404,
+            content=f"""
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เอกสารไม่พร้อมใช้งาน</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }}
+    .card {{
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      max-width: 440px;
+      width: 90%;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }}
+    .icon-wrap {{
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #312e81, #4c1d95);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      font-size: 36px;
+      box-shadow: 0 0 30px rgba(99,102,241,0.3);
+    }}
+    h1 {{
+      font-size: 20px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }}
+    .desc {{
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }}
+    .desc strong {{
+      color: #c7d2fe;
+    }}
+    .divider {{
+      border: none;
+      border-top: 1px solid #334155;
+      margin: 24px 0;
+    }}
+    .action-box {{
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #4338ca;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }}
+    .action-box p {{
+      font-size: 13px;
+      color: #a5b4fc;
+      line-height: 1.7;
+    }}
+    .action-box .line-hint {{
+      font-size: 15px;
+      font-weight: 600;
+      color: #818cf8;
+      margin-top: 8px;
+    }}
+    .badge {{
+      display: inline-block;
+      background: rgba(99,102,241,0.15);
+      color: #a5b4fc;
+      border: 1px solid #4338ca;
+      border-radius: 999px;
+      padding: 5px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">📋</div>
+    <h1>เอกสาร Policy นี้<br>ไม่พร้อมให้ดาวน์โหลด</h1>
+    <p class="desc">
+      ไฟล์ <strong>{filename}</strong> อาจถูก<strong>อัปเดต</strong>หรือ<strong>ยกเลิกการใช้งาน</strong><br>
+      โดยทีมผู้ดูแลนโยบายขององค์กรแล้ว
+    </p>
+    <hr class="divider">
+    <div class="action-box">
+      <p>หากต้องการข้อมูล Policy ล่าสุด<br>กรุณาสอบถามผ่าน</p>
+      <div class="line-hint">💬 LINE Chatbot อีกครั้ง</div>
+      <p style="margin-top:8px; font-size:12px; color:#64748b;">
+        ระบบจะค้นหาเอกสารเวอร์ชันปัจจุบันให้อัตโนมัติ
+      </p>
+    </div>
+    <span class="badge">🔒 Document Unavailable</span>
+  </div>
+</body>
+</html>
+""",
+        )
 
     return FileResponse(
         path=str(file_path),
