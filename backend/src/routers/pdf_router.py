@@ -307,110 +307,146 @@ def public_download_document(
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{
       font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-      color: #e2e8f0;
+      background: #f5f5f7;
+      color: #1d1d1f;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
     }}
     .card {{
-      background: rgba(30, 41, 59, 0.9);
-      border: 1px solid #334155;
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 20px;
       padding: 48px 40px;
       text-align: center;
-      max-width: 440px;
+      max-width: 420px;
       width: 90%;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
     }}
     .icon-wrap {{
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #991b1b, #ef4444);
+      width: 72px;
+      height: 72px;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 28px;
-      font-size: 36px;
-      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
     }}
     h1 {{
-      font-size: 20px;
-      font-weight: 700;
-      color: #f8fafc;
-      margin-bottom: 16px;
-      line-height: 1.4;
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 12px;
+      line-height: 1.5;
     }}
     .desc {{
       font-size: 14px;
-      color: #94a3b8;
+      color: #6b7280;
       line-height: 1.8;
       margin-bottom: 24px;
     }}
     .desc strong {{
-      color: #fca5a5;
+      color: #e11d48;
+      font-weight: 500;
     }}
     .divider {{
       border: none;
-      border-top: 1px solid #334155;
-      margin: 24px 0;
+      border-top: 1px solid #f1f1f1;
+      margin: 20px 0;
     }}
     .action-box {{
-      background: rgba(153, 27, 27, 0.1);
-      border: 1px solid #dc2626;
+      background: #fff8f8;
+      border: 1px solid #fecdd3;
       border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 24px;
+      text-align: left;
     }}
     .action-box p {{
       font-size: 13px;
-      color: #fca5a5;
+      color: #6b7280;
       line-height: 1.7;
     }}
     .action-box .line-hint {{
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
-      color: #f87171;
+      color: #e11d48;
       margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }}
+    .action-box .sub {{
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
     }}
     .badge {{
-      display: inline-block;
-      background: rgba(239, 68, 68, 0.15);
-      color: #fca5a5;
-      border: 1px solid #991b1b;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f9fafb;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
       border-radius: 999px;
-      padding: 5px 16px;
+      padding: 5px 14px;
       font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
     }}
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="icon-wrap">🚫</div>
+
+    <div class="icon-wrap">
+      <svg width="36" height="36" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 4C8 2.89543 8.89543 2 10 2H20L26 8V30C26 31.1046 25.1046 32 24 32H10C8.89543 32 8 31.1046 8 30V4Z"
+          fill="#fff1f2" stroke="#e11d48" stroke-width="1.5"/>
+        <path d="M20 2L26 8H22C20.8954 8 20 7.10457 20 6V2Z"
+          fill="#e11d48" opacity="0.2"/>
+        <line x1="20" y1="2" x2="20" y2="8" stroke="#e11d48" stroke-width="1.5"/>
+        <line x1="20" y1="8" x2="26" y2="8" stroke="#e11d48" stroke-width="1.5"/>
+        <rect x="16" y="13" width="2.2" height="9" rx="1.1" fill="#e11d48"/>
+        <circle cx="17.1" cy="26" r="1.3" fill="#e11d48"/>
+      </svg>
+    </div>
+
     <h1>เอกสาร Policy นี้<br>ไม่พร้อมให้ดาวน์โหลด</h1>
     <p class="desc">
       ไฟล์ <strong>{filename}</strong> อาจถูก<strong>อัปเดต</strong>หรือ<strong>ยกเลิกการใช้งาน</strong><br>
       โดยทีมผู้ดูแลนโยบายขององค์กรแล้ว
     </p>
+
     <hr class="divider">
+
     <div class="action-box">
       <p>หากต้องการข้อมูล Policy ล่าสุด<br>กรุณาสอบถามผ่าน</p>
-      <div class="line-hint">💬 LINE Chatbot อีกครั้ง</div>
-      <p style="margin-top:8px; font-size:12px; color:#94a3b8;">
-        ระบบจะค้นหาเอกสารเวอร์ชันปัจจุบันให้อัตโนมัติ
-      </p>
+      <div class="line-hint">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        LINE Chatbot อีกครั้ง
+      </div>
+      <p class="sub">ระบบจะค้นหาเอกสารเวอร์ชันปัจจุบันให้อัตโนมัติ</p>
     </div>
-    <span class="badge">🔒 Access Restricted</span>
+
+    <span class="badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Access Restricted
+    </span>
+
   </div>
 </body>
 </html>
 """,
-        )
+    )
 
     return FileResponse(
         path=str(file_path),
