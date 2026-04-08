@@ -77,7 +77,7 @@ export function Policies() {
     if (!editingFile || !selectedFile) return;
     setUploading(true);
     try {
-      await documentsApi.update(selectedFile, COMPANY, editingFile.department, editingFile.name);
+      await documentsApi.update(selectedFile, COMPANY, formData.department, editingFile.name, editingFile.department);
       handleCloseModal();
       await new Promise((r) => setTimeout(r, 500));
       await fetchPolicies();
@@ -88,7 +88,7 @@ export function Policies() {
     }
   };
 
-  // 👇 แทนที่ confirm() ด้วย modal
+  // แทนที่ confirm() ด้วย modal
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     try {
@@ -241,7 +241,7 @@ export function Policies() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        {/* 👇 เปลี่ยนจาก handleDelete เป็น setDeleteTarget */}
+                        {/* เปลี่ยนจาก handleDelete เป็น setDeleteTarget */}
                         <button
                           onClick={() => setDeleteTarget(policy)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -328,7 +328,7 @@ export function Policies() {
         </div>
       )}
 
-      {/* 👇 Delete Confirm Modal */}
+      {/*Delete Confirm Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">

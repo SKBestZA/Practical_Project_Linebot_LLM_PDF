@@ -230,6 +230,7 @@ async def update_document(
     company_code: str = Query(...),
     department:   str = Query(...),
     old_filename: str = Query(...),
+    old_dept: str = Query(...),
     admin:        dict = Depends(verify_admin_token),
 ):
     _require_identity(company_code, department)
@@ -239,6 +240,7 @@ async def update_document(
 
     try:
         company_name = _get_company_name(company_code)
+        old_dept_name=_get_department_name(old_dept)
         dept_name    = _get_department_name(department)
 
         logger.info(f"🔄 Update: {old_filename} → {file.filename} [{company_name}/{dept_name}]")
@@ -247,9 +249,9 @@ async def update_document(
         new_source = os.path.splitext(file.filename)[0]
 
         chroma = get_chroma_service()
-        chroma.delete_document_by_source(company_name, dept_name, old_source)
+        chroma.delete_document_by_source(company_name, old_dept_name, old_source)
 
-        old_file_path = get_file_path(company_name, dept_name, old_filename)
+        old_file_path = get_file_path(company_name, old_dept_name, old_filename)
         if old_file_path:
             delete_file(str(old_file_path))
 
