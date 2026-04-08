@@ -157,12 +157,12 @@ export const documentsApi = {
         });
     },
 
-    update: (file: File, companyCode: string, department: string, oldFilename: string) => {
+    update: (file: File, companyCode: string, department: string, oldFilename: string, oldDept: string) => {
         const token = getToken();
         const formData = new FormData();
         formData.append('file', file);
         return fetch(
-            `${BASE_URL}/documents/update?company_code=${companyCode}&department=${department}&old_filename=${encodeURIComponent(oldFilename)}`,
+            `${BASE_URL}/documents/update?company_code=${companyCode}&department=${department}&old_filename=${encodeURIComponent(oldFilename)}&old_dept=${encodeURIComponent(oldDept)}`,
             {
                 method: 'PUT',
                 headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
